@@ -1,5 +1,6 @@
 /backend/vendor/
 /backend/.env
+/backend/.phpunit.result.cache
 /backend/bootstrap/cache/*.php
 /backend/database/database.sqlite
 /backend/storage/*.key

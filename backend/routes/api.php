@@ -1,5 +1,8 @@
 <?php
 
+use App\Http\Controllers\Api\AuthController;
+use App\Http\Controllers\Api\CategoryController;
+use App\Http\Controllers\Api\MonthlyBudgetController;
 use Illuminate\Support\Facades\Route;
 
 Route::get('/health', function () {
@@ -9,4 +12,18 @@ Route::get('/health', function () {
         'locale' => config('app.locale'),
         'timezone' => config('app.timezone'),
     ]);
+});
+
+Route::post('/register', [AuthController::class, 'register']);
+Route::post('/login', [AuthController::class, 'login']);
+
+Route::middleware('auth:sanctum')->group(function () {
+    Route::post('/logout', [AuthController::class, 'logout']);
+    Route::get('/me', [AuthController::class, 'me']);
+
+    Route::get('/categories', [CategoryController::class, 'index']);
+
+    Route::get('/budgets', [MonthlyBudgetController::class, 'show']);
+    Route::post('/budgets', [MonthlyBudgetController::class, 'store']);
+    Route::put('/budgets/{budget}', [MonthlyBudgetController::class, 'update']);
 });
