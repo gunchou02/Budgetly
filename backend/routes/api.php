@@ -2,6 +2,7 @@
 
 use App\Http\Controllers\Api\AuthController;
 use App\Http\Controllers\Api\CategoryController;
+use App\Http\Controllers\Api\DashboardController;
 use App\Http\Controllers\Api\ExpenseController;
 use App\Http\Controllers\Api\MonthlyBudgetController;
 use App\Http\Controllers\Api\SubscriptionController;
@@ -24,6 +25,7 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::get('/me', [AuthController::class, 'me']);
 
     Route::get('/categories', [CategoryController::class, 'index']);
+    Route::get('/dashboard', [DashboardController::class, 'show']);
 
     Route::get('/budgets', [MonthlyBudgetController::class, 'show']);
     Route::post('/budgets', [MonthlyBudgetController::class, 'store']);
