@@ -1,5 +1,6 @@
 import { NavLink, Outlet } from 'react-router-dom';
-import { ChartPie, CreditCard, LayoutDashboard, ReceiptText, WalletCards } from 'lucide-react';
+import { ChartPie, CreditCard, LayoutDashboard, LogOut, ReceiptText, WalletCards } from 'lucide-react';
+import { useAuth } from './auth/AuthContext';
 
 const navigation = [
   { to: '/dashboard', label: 'ダッシュボード', icon: LayoutDashboard },
@@ -10,6 +11,8 @@ const navigation = [
 ];
 
 function App() {
+  const { logout, user } = useAuth();
+
   return (
     <div className="app-shell">
       <aside className="sidebar">
@@ -33,6 +36,14 @@ function App() {
             );
           })}
         </nav>
+
+        <div className="sidebar-footer">
+          <span>{user?.email}</span>
+          <button type="button" className="ghost-button" onClick={logout}>
+            <LogOut size={16} aria-hidden="true" />
+            ログアウト
+          </button>
+        </div>
       </aside>
 
       <main className="main-content">
