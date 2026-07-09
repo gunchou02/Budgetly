@@ -56,7 +56,22 @@ Budgetly/
 
 ## Local Development
 
-### Backend
+### Docker
+
+```bash
+docker compose up -d
+```
+
+Docker Desktop must be running before using Docker Compose.
+
+Default URLs:
+
+```txt
+Frontend: http://127.0.0.1:5173
+API:      http://127.0.0.1:8080/api
+```
+
+### Backend without Docker
 
 ```bash
 cd backend
@@ -67,18 +82,6 @@ php artisan migrate --seed
 php artisan serve --host=127.0.0.1 --port=8081
 ```
 
-The frontend uses this API URL by default:
-
-```txt
-http://127.0.0.1:8081/api
-```
-
-To override it, set this in `frontend/.env`:
-
-```txt
-VITE_API_BASE_URL=http://127.0.0.1:8081/api
-```
-
 ### Frontend
 
 ```bash
@@ -87,21 +90,42 @@ npm install
 npm run dev
 ```
 
+The frontend uses this API URL by default:
+
+```txt
+http://127.0.0.1:8080/api
+```
+
+When using `php artisan serve --port=8081` instead of Docker nginx, set this in `frontend/.env`:
+
+```txt
+VITE_API_BASE_URL=http://127.0.0.1:8081/api
+```
+
 Default frontend URL:
 
 ```txt
 http://127.0.0.1:5173
 ```
 
-### Docker
+## Verification
+
+API health check:
 
 ```bash
-docker compose up -d
+curl http://127.0.0.1:8080/api/health
 ```
 
-Docker Desktop must be running before using Docker Compose.
+Expected response:
 
-## Verification
+```json
+{
+  "status": "ok",
+  "service": "Budgetly API",
+  "locale": "ja",
+  "timezone": "Asia/Tokyo"
+}
+```
 
 Backend tests:
 
@@ -115,23 +139,6 @@ Frontend production build:
 ```bash
 cd frontend
 npm run build
-```
-
-API health check:
-
-```bash
-curl http://127.0.0.1:8081/api/health
-```
-
-Expected response:
-
-```json
-{
-  "status": "ok",
-  "service": "Budgetly API",
-  "locale": "ja",
-  "timezone": "Asia/Tokyo"
-}
 ```
 
 ## Documents

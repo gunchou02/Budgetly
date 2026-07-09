@@ -5,8 +5,10 @@ Budgetly APIはLaravel SanctumのPersonal Access Token方式で認証します�
 ## Base URL
 
 ```txt
-http://127.0.0.1:8081/api
+http://127.0.0.1:8080/api
 ```
+
+When running the Laravel server directly with `php artisan serve --port=8081`, use `http://127.0.0.1:8081/api` instead.
 
 認証が必要なAPIでは、次のヘッダーを付けます。
 
@@ -51,7 +53,7 @@ Not found or another user's data:
 認証不要。APIの稼働確認に使用します。
 
 ```bash
-curl http://127.0.0.1:8081/api/health
+curl http://127.0.0.1:8080/api/health
 ```
 
 ## Auth
