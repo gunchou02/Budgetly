@@ -26,6 +26,7 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::get('/me', [AuthController::class, 'me']);
 
     Route::get('/categories', [CategoryController::class, 'index']);
+    Route::post('/categories', [CategoryController::class, 'store']);
     Route::get('/dashboard', [DashboardController::class, 'show']);
 
     Route::get('/budgets', [MonthlyBudgetController::class, 'show']);

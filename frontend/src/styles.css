@@ -226,7 +226,25 @@ a {
 
 .content-grid {
   display: grid;
-  grid-template-columns: minmax(0, 1.4fr) minmax(320px, 0.6fr);
+  grid-template-columns: 1fr;
+  gap: 16px;
+  align-items: start;
+}
+
+.dashboard-calendar-grid {
+  display: grid;
+  grid-template-columns: minmax(0, 1.45fr) minmax(320px, 0.55fr);
+  gap: 16px;
+}
+
+.calendar-column {
+  display: grid;
+  gap: 16px;
+}
+
+.dashboard-side-column {
+  display: grid;
+  align-content: start;
   gap: 16px;
 }
 
@@ -248,6 +266,187 @@ a {
 .panel-header h2 {
   margin: 0;
   font-size: 18px;
+}
+
+.calendar-panel,
+.quick-expense-panel {
+  align-self: start;
+}
+
+.calendar-weekdays,
+.calendar-grid {
+  display: grid;
+  grid-template-columns: repeat(7, minmax(0, 1fr));
+  gap: 8px;
+}
+
+.calendar-weekdays {
+  margin-bottom: 8px;
+  color: #6b7280;
+  font-size: 12px;
+  font-weight: 700;
+  text-align: center;
+}
+
+.calendar-weekdays .sunday,
+.calendar-day.sunday .calendar-day-number {
+  color: #dc2626;
+}
+
+.calendar-weekdays .saturday,
+.calendar-day.saturday .calendar-day-number {
+  color: #2563eb;
+}
+
+.calendar-day,
+.calendar-blank {
+  min-height: 92px;
+  border-radius: 8px;
+}
+
+.calendar-day {
+  display: grid;
+  align-content: space-between;
+  gap: 8px;
+  border: 1px solid #e5e7eb;
+  background: #ffffff;
+  padding: 10px;
+  color: #111827;
+  cursor: pointer;
+  text-align: left;
+}
+
+.calendar-day:hover {
+  border-color: #9ca3af;
+  background: #f9fafb;
+}
+
+.calendar-day.selected {
+  border-color: #2563eb;
+  background: #eff6ff;
+  box-shadow: inset 0 0 0 1px #2563eb;
+}
+
+.calendar-day.today .calendar-day-number {
+  display: inline-grid;
+  width: 26px;
+  height: 26px;
+  place-items: center;
+  border-radius: 999px;
+  background: #111827;
+  color: #ffffff;
+}
+
+.calendar-day span {
+  font-weight: 700;
+}
+
+.calendar-day strong {
+  font-size: 13px;
+}
+
+.calendar-day-amounts {
+  display: grid;
+  gap: 4px;
+}
+
+.calendar-expense-total {
+  display: block;
+  text-align: right;
+}
+
+.calendar-expense-total strong {
+  color: #111827;
+  font-size: 12px;
+}
+
+.calendar-day small {
+  color: #9ca3af;
+  font-size: 12px;
+}
+
+.calendar-item-line {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  gap: 4px;
+  align-items: center;
+}
+
+.calendar-item-line span {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.calendar-item-line strong {
+  font-size: 12px;
+}
+
+.calendar-item-line.recurring {
+  border-left: 3px solid #db2777;
+  border-radius: 4px;
+  background: #fdf2f8;
+  padding: 3px 4px;
+  color: #be185d;
+  font-weight: 700;
+}
+
+.calendar-item-line.recurring strong {
+  color: #be185d;
+}
+
+.calendar-blank {
+  background: #f9fafb;
+}
+
+.compact-form {
+  gap: 12px;
+}
+
+.daily-expense-list {
+  display: grid;
+  gap: 10px;
+  margin-top: 18px;
+}
+
+.daily-expense-list.expanded {
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  margin-top: 0;
+}
+
+.daily-expense-item {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  gap: 10px;
+  border-top: 1px solid #f3f4f6;
+  padding-top: 12px;
+}
+
+.daily-expense-item div:first-child {
+  display: grid;
+  gap: 4px;
+}
+
+.daily-expense-item span {
+  color: #6b7280;
+  font-size: 13px;
+}
+
+.daily-expense-item.subscription-item {
+  border-top-color: #fce7f3;
+}
+
+.daily-expense-item.subscription-item strong:last-child,
+.daily-expense-item.subscription-item span {
+  color: #be185d;
+}
+
+.daily-expense-item .row-actions {
+  grid-column: 1 / -1;
+}
+
+.daily-list-panel .panel-header {
+  margin-bottom: 12px;
 }
 
 .chart-layout {
@@ -286,6 +485,33 @@ a {
   border-bottom: 1px solid #f3f4f6;
 }
 
+.fixed-cost-panel {
+  padding: 16px;
+}
+
+.fixed-cost-panel .panel-header {
+  margin-bottom: 10px;
+}
+
+.fixed-cost-panel .subscription-list {
+  gap: 4px;
+}
+
+.fixed-cost-panel .subscription-list div {
+  min-height: 36px;
+}
+
+.fixed-cost-panel .insight {
+  margin-top: 12px;
+  padding: 12px;
+}
+
+.inline-category-form {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  gap: 8px;
+}
+
 .insight {
   margin: 20px 0 0;
   padding: 14px;
@@ -317,6 +543,20 @@ label {
   font-weight: 700;
 }
 
+.checkbox-label {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  justify-content: flex-start;
+}
+
+.checkbox-label input {
+  width: 16px;
+  min-height: 16px;
+  height: 16px;
+  margin: 0;
+}
+
 input,
 select {
   min-height: 40px;
@@ -326,6 +566,38 @@ select {
   padding: 0 10px;
   color: #111827;
   font: inherit;
+}
+
+.amount-input-wrap {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr);
+  align-items: center;
+  min-height: 40px;
+  border: 1px solid #d1d5db;
+  border-radius: 8px;
+  background: #ffffff;
+  overflow: hidden;
+}
+
+.amount-input-wrap:focus-within {
+  border-color: #2563eb;
+  box-shadow: 0 0 0 1px #2563eb;
+}
+
+.amount-input-wrap span {
+  padding-left: 10px;
+  color: #6b7280;
+  font-weight: 700;
+}
+
+.amount-input-wrap input {
+  border: 0;
+  min-height: 38px;
+  padding-left: 6px;
+}
+
+.amount-input-wrap input:focus {
+  outline: none;
 }
 
 .primary-button,
@@ -396,6 +668,124 @@ select {
   gap: 24px;
 }
 
+.budget-layout {
+  display: grid;
+  grid-template-columns: minmax(340px, 0.85fr) minmax(0, 1.15fr);
+  gap: 16px;
+  align-items: stretch;
+}
+
+.budget-hero {
+  display: grid;
+  align-content: space-between;
+  gap: 24px;
+  min-height: 280px;
+  border: 1px solid #e5e7eb;
+  border-radius: 8px;
+  background: #111827;
+  color: #ffffff;
+  padding: 28px;
+}
+
+.budget-hero h2 {
+  margin: 8px 0 0;
+  font-size: 22px;
+}
+
+.budget-hero .eyebrow,
+.budget-hero span {
+  color: #cbd5e1;
+}
+
+.budget-hero strong {
+  display: block;
+  font-size: clamp(42px, 5vw, 64px);
+  line-height: 1;
+}
+
+.budget-hero span {
+  font-weight: 700;
+}
+
+.budget-edit-panel {
+  align-self: stretch;
+}
+
+.subscription-layout {
+  display: grid;
+  grid-template-columns: minmax(340px, 0.85fr) minmax(0, 1.15fr);
+  gap: 16px;
+  align-items: stretch;
+}
+
+.subscription-hero {
+  display: grid;
+  align-content: space-between;
+  gap: 22px;
+  min-height: 320px;
+  border: 1px solid #fbcfe8;
+  border-radius: 8px;
+  background: #fdf2f8;
+  color: #111827;
+  padding: 28px;
+}
+
+.subscription-hero h2 {
+  margin: 8px 0 0;
+  font-size: 22px;
+}
+
+.subscription-hero > strong {
+  display: block;
+  color: #be185d;
+  font-size: clamp(42px, 5vw, 64px);
+  line-height: 1;
+}
+
+.subscription-hero > span,
+.subscription-hero .eyebrow {
+  color: #9d174d;
+  font-weight: 700;
+}
+
+.subscription-hero-list {
+  display: grid;
+  gap: 8px;
+}
+
+.subscription-hero-list div {
+  display: grid;
+  grid-template-columns: 76px minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 10px;
+  min-height: 42px;
+  border-radius: 8px;
+  background: #ffffff;
+  padding: 0 12px;
+}
+
+.subscription-hero-list span {
+  color: #9d174d;
+  font-size: 12px;
+  font-weight: 700;
+}
+
+.subscription-hero-list strong {
+  overflow: hidden;
+  color: #111827;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.subscription-edit-panel {
+  align-self: stretch;
+}
+
+.budget-subscription-section {
+  display: grid;
+  gap: 16px;
+}
+
 .detail-box {
   display: grid;
   align-content: center;
@@ -456,10 +846,34 @@ select {
 
   .summary-grid,
   .content-grid,
+  .dashboard-calendar-grid,
+  .budget-layout,
+  .subscription-layout,
   .chart-layout,
   .form-row,
+  .daily-expense-list.expanded,
   .two-column-panel,
   .table-row {
     grid-template-columns: 1fr;
+  }
+
+  .calendar-weekdays,
+  .calendar-grid {
+    gap: 6px;
+  }
+
+  .calendar-day,
+  .calendar-blank {
+    min-height: 74px;
+  }
+
+  .calendar-day {
+    padding: 8px;
+  }
+
+  .subscription-hero-list div {
+    grid-template-columns: 1fr;
+    gap: 2px;
+    padding: 10px 12px;
   }
 }

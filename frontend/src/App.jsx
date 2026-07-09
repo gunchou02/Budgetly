@@ -1,13 +1,18 @@
-import { NavLink, Outlet } from 'react-router-dom';
-import { ChartPie, CreditCard, LayoutDashboard, LogOut, ReceiptText, WalletCards } from 'lucide-react';
-import { useAuth } from './auth/AuthContext';
+import { NavLink, Outlet } from "react-router-dom";
+import {
+  ChartPie,
+  CreditCard,
+  LayoutDashboard,
+  LogOut,
+  WalletCards,
+} from "lucide-react";
+import { useAuth } from "./auth/AuthContext";
 
 const navigation = [
-  { to: '/dashboard', label: 'ダッシュボード', icon: LayoutDashboard },
-  { to: '/expenses', label: '支出', icon: ReceiptText },
-  { to: '/subscriptions', label: 'サブスク', icon: CreditCard },
-  { to: '/budgets', label: '予算', icon: WalletCards },
-  { to: '/reports', label: 'レポート', icon: ChartPie },
+  { to: "/dashboard", label: "ホーム", icon: LayoutDashboard },
+  { to: "/budgets", label: "予算", icon: WalletCards },
+  { to: "/subscriptions", label: "サブスク", icon: CreditCard },
+  { to: "/reports", label: "分析", icon: ChartPie },
 ];
 
 function App() {
@@ -20,7 +25,6 @@ function App() {
           <span className="brand-mark">B</span>
           <div>
             <strong>Budgetly</strong>
-            <span>生活費管理</span>
           </div>
         </div>
 

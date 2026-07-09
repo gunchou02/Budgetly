@@ -89,6 +89,31 @@ class AuthAndBudgetApiTest extends TestCase
             ->assertJsonPath('data.0.name', '食費');
     }
 
+    public function test_user_can_filter_and_create_fixed_categories(): void
+    {
+        $token = $this->registerAndReturnToken();
+
+        $this->withToken($token)
+            ->getJson('/api/categories?type=fixed')
+            ->assertOk()
+            ->assertJsonPath('data.0.name', 'サブスク');
+
+        $this->withToken($token)
+            ->getJson('/api/categories?type=expense')
+            ->assertOk()
+            ->assertJsonPath('data.0.type', 'expense')
+            ->assertJsonMissing(['name' => 'サブスク']);
+
+        $this->withToken($token)
+            ->postJson('/api/categories', [
+                'name' => '駐車場',
+                'type' => 'fixed',
+            ])
+            ->assertCreated()
+            ->assertJsonPath('data.name', '駐車場')
+            ->assertJsonPath('data.type', 'fixed');
+    }
+
     public function test_user_can_create_show_and_update_monthly_budget(): void
     {
         $token = $this->registerAndReturnToken();

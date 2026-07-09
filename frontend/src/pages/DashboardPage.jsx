@@ -1,7 +1,10 @@
-import { useEffect, useState } from 'react';
+import { useCallback, useEffect, useState } from 'react';
 import { Cell, Pie, PieChart, ResponsiveContainer } from 'recharts';
 import { apiClient, getApiErrorMessage } from '../api/client';
-import { formatMonthLabel, formatYen, getCurrentYearMonth } from '../utils/formatters';
+import DailyExpenseList from '../components/DailyExpenseList';
+import ExpenseCalendar from '../components/ExpenseCalendar';
+import QuickExpensePanel from '../components/QuickExpensePanel';
+import { formatDateValue, formatMonthLabel, formatYen, getCurrentYearMonth } from '../utils/formatters';
 
 const statusLabels = {
   safe: '余裕あり',
@@ -12,61 +15,128 @@ const statusLabels = {
 function DashboardPage() {
   const current = getCurrentYearMonth();
   const [filters, setFilters] = useState(current);
+  const [selectedDate, setSelectedDate] = useState(() => formatDateValue());
   const [dashboard, setDashboard] = useState(null);
   const [categoryReport, setCategoryReport] = useState(null);
+  const [expenseCategories, setExpenseCategories] = useState([]);
+  const [expenses, setExpenses] = useState([]);
   const [subscriptions, setSubscriptions] = useState([]);
+  const [editingExpense, setEditingExpense] = useState(null);
   const [error, setError] = useState('');
   const [isLoading, setIsLoading] = useState(true);
 
-  useEffect(() => {
-    let isActive = true;
-
-    async function fetchDashboard() {
-      setIsLoading(true);
-      setError('');
-
+  const fetchDashboard = useCallback(
+    async (shouldUpdate = () => true) => {
       try {
+        setIsLoading(true);
+        setError('');
+
         const params = {
           year: filters.year,
           month: filters.month,
         };
-        const [dashboardResponse, categoryResponse, subscriptionResponse] = await Promise.all([
+        const [dashboardResponse, categoryResponse, categoriesResponse, expensesResponse, subscriptionResponse] = await Promise.all([
           apiClient.get('/dashboard', { params }),
           apiClient.get('/reports/categories', { params }),
+          apiClient.get('/categories', { params: { type: 'expense' } }),
+          apiClient.get('/expenses', { params }),
           apiClient.get('/subscriptions', { params: { status: 'active' } }),
         ]);
 
-        if (isActive) {
+        if (shouldUpdate()) {
           setDashboard(dashboardResponse.data.data);
           setCategoryReport(categoryResponse.data.data);
+          setExpenseCategories(categoriesResponse.data.data);
+          setExpenses(expensesResponse.data.data);
           setSubscriptions(subscriptionResponse.data.data);
         }
       } catch (requestError) {
-        if (isActive) {
+        if (shouldUpdate()) {
           setError(getApiErrorMessage(requestError));
         }
       } finally {
-        if (isActive) {
+        if (shouldUpdate()) {
           setIsLoading(false);
         }
       }
-    }
+    },
+    [filters],
+  );
 
-    fetchDashboard();
+  useEffect(() => {
+    let isActive = true;
+
+    fetchDashboard(() => isActive);
 
     return () => {
       isActive = false;
     };
-  }, [filters]);
+  }, [fetchDashboard]);
 
   function updateFilter(event) {
+    const nextValue = Number(event.target.value);
+
     setFilters((currentFilters) => ({
       ...currentFilters,
-      [event.target.name]: Number(event.target.value),
+      [event.target.name]: nextValue,
     }));
+
+    setSelectedDate((currentDate) => {
+      const [year, month, day] = currentDate.split('-').map(Number);
+      const nextYear = event.target.name === 'year' ? nextValue : year;
+      const nextMonth = event.target.name === 'month' ? nextValue : month;
+      const lastDate = new Date(nextYear, nextMonth, 0).getDate();
+      return `${nextYear}-${String(nextMonth).padStart(2, '0')}-${String(Math.min(day, lastDate)).padStart(2, '0')}`;
+    });
   }
 
-  const categories = categoryReport?.categories ?? [];
+  async function createExpense(payload) {
+    setError('');
+
+    try {
+      await apiClient.post('/expenses', payload);
+      await fetchDashboard();
+    } catch (requestError) {
+      setError(getApiErrorMessage(requestError));
+    }
+  }
+
+  async function createRecurringExpense(payload) {
+    setError('');
+
+    try {
+      await apiClient.post('/subscriptions', payload);
+      await fetchDashboard();
+    } catch (requestError) {
+      setError(getApiErrorMessage(requestError));
+    }
+  }
+
+  async function updateExpense(expenseId, payload) {
+    setError('');
+
+    try {
+      await apiClient.put(`/expenses/${expenseId}`, payload);
+      setEditingExpense(null);
+      await fetchDashboard();
+    } catch (requestError) {
+      setError(getApiErrorMessage(requestError));
+    }
+  }
+
+  async function deleteExpense(expenseId) {
+    setError('');
+
+    try {
+      await apiClient.delete(`/expenses/${expenseId}`);
+      await fetchDashboard();
+    } catch (requestError) {
+      setError(getApiErrorMessage(requestError));
+    }
+  }
+
+  const reportCategories = categoryReport?.categories ?? [];
+  const quickExpenseCategories = expenseCategories;
   const status = dashboard?.status ?? 'safe';
 
   return (
@@ -121,24 +191,72 @@ function DashboardPage() {
             </article>
           </div>
 
+          <div className="dashboard-calendar-grid">
+            <div className="calendar-column">
+              <ExpenseCalendar
+                year={filters.year}
+                month={filters.month}
+                expenses={expenses}
+                subscriptions={subscriptions}
+                selectedDate={selectedDate}
+                onSelectDate={setSelectedDate}
+              />
+              <DailyExpenseList
+                expenses={expenses}
+                subscriptions={subscriptions}
+                selectedDate={selectedDate}
+                onEdit={setEditingExpense}
+                onDelete={deleteExpense}
+              />
+            </div>
+            <div className="dashboard-side-column">
+              <QuickExpensePanel
+                categories={quickExpenseCategories}
+                selectedDate={selectedDate}
+                onSelectDate={setSelectedDate}
+                onCreate={createExpense}
+                onCreateRecurring={createRecurringExpense}
+                onUpdate={updateExpense}
+                editingExpense={editingExpense}
+                onClearEditing={() => setEditingExpense(null)}
+              />
+              <section className="panel fixed-cost-panel">
+                <div className="panel-header">
+                  <h2>固定費</h2>
+                </div>
+                <div className="subscription-list">
+                  {subscriptions.slice(0, 5).map((subscription) => (
+                    <div key={subscription.id}>
+                      <span>{subscription.name}</span>
+                      <strong>{formatYen(subscription.amount)}</strong>
+                    </div>
+                  ))}
+                </div>
+                <p className={`insight ${dashboard.remaining < 0 ? 'danger-text' : ''}`}>
+                  使用率 {dashboard.usage_rate}% / 固定費合計 {formatYen(dashboard.subscription_total)}
+                </p>
+              </section>
+            </div>
+          </div>
+
           <div className="content-grid">
             <section className="panel">
               <div className="panel-header">
                 <h2>カテゴリ別支出</h2>
               </div>
-              {categories.length > 0 ? (
+              {reportCategories.length > 0 ? (
                 <div className="chart-layout">
                   <ResponsiveContainer width="100%" height={260}>
                     <PieChart>
-                      <Pie data={categories} dataKey="amount" nameKey="name" innerRadius={58} outerRadius={96}>
-                        {categories.map((entry) => (
+                      <Pie data={reportCategories} dataKey="amount" nameKey="name" innerRadius={58} outerRadius={96}>
+                        {reportCategories.map((entry) => (
                           <Cell key={entry.category_id} fill={entry.color} />
                         ))}
                       </Pie>
                     </PieChart>
                   </ResponsiveContainer>
                   <ul className="legend-list">
-                    {categories.map((item) => (
+                    {reportCategories.map((item) => (
                       <li key={item.category_id}>
                         <span style={{ backgroundColor: item.color }} />
                         <span>{item.name}</span>
@@ -150,23 +268,6 @@ function DashboardPage() {
               ) : (
                 <p className="muted-text">この月の支出はまだありません。</p>
               )}
-            </section>
-
-            <section className="panel">
-              <div className="panel-header">
-                <h2>サブスク</h2>
-              </div>
-              <div className="subscription-list">
-                {subscriptions.slice(0, 5).map((subscription) => (
-                  <div key={subscription.id}>
-                    <span>{subscription.name}</span>
-                    <strong>{formatYen(subscription.amount)}</strong>
-                  </div>
-                ))}
-              </div>
-              <p className={`insight ${dashboard.remaining < 0 ? 'danger-text' : ''}`}>
-                使用率 {dashboard.usage_rate}% / サブスク合計 {formatYen(dashboard.subscription_total)}
-              </p>
             </section>
           </div>
         </>

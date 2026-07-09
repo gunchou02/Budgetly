@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react';
 import { apiClient, getApiErrorMessage } from '../api/client';
+import AmountInput from '../components/AmountInput';
 import { formatMonthLabel, formatYen, getCurrentYearMonth } from '../utils/formatters';
 
 function BudgetsPage() {
@@ -12,6 +13,7 @@ function BudgetsPage() {
   const [budget, setBudget] = useState(null);
   const [error, setError] = useState('');
   const [message, setMessage] = useState('');
+  const displayedAmount = budget?.amount ?? form.amount;
 
   useEffect(() => {
     let isActive = true;
@@ -54,7 +56,7 @@ function BudgetsPage() {
   function updateField(event) {
     setForm((currentForm) => ({
       ...currentForm,
-      [event.target.name]: Number(event.target.value),
+      [event.target.name]: event.target.name === 'amount' ? event.target.value : Number(event.target.value),
     }));
   }
 
@@ -89,33 +91,42 @@ function BudgetsPage() {
         </div>
       </header>
 
-      <section className="panel two-column-panel">
-        <form className="form-grid" onSubmit={handleSubmit}>
-          <div className="form-row">
-            <label>
-              年
-              <input name="year" type="number" value={form.year} onChange={updateField} min="2000" max="2100" />
-            </label>
-            <label>
-              月
-              <input name="month" type="number" value={form.month} onChange={updateField} min="1" max="12" />
-            </label>
+      <section className="budget-layout">
+        <div className="budget-hero">
+          <div>
+            <p className="eyebrow">{formatMonthLabel(form.year, form.month)}</p>
+            <h2>今月の予算</h2>
           </div>
-          <label>
-            月間生活費予算
-            <input name="amount" type="number" value={form.amount} onChange={updateField} min="0" />
-          </label>
-          {error && <p className="form-error">{error}</p>}
-          {message && <p className="form-success">{message}</p>}
-          <button className="primary-button" type="submit">
-            保存
-          </button>
-        </form>
-
-        <div className="detail-box">
-          <span>{formatMonthLabel(form.year, form.month)}</span>
-          <strong>{budget ? formatYen(budget.amount) : '未設定'}</strong>
+          <strong>{budget ? formatYen(displayedAmount) : '未設定'}</strong>
+          <span>{budget ? 'この金額を基準にホームの残額を計算します。' : 'この月の予算はまだ設定されていません。'}</span>
         </div>
+
+        <section className="panel budget-edit-panel">
+          <div className="panel-header">
+            <h2>予算を編集</h2>
+          </div>
+          <form className="form-grid" onSubmit={handleSubmit}>
+            <div className="form-row">
+              <label>
+                年
+                <input name="year" type="number" value={form.year} onChange={updateField} min="2000" max="2100" />
+              </label>
+              <label>
+                月
+                <input name="month" type="number" value={String(form.month).padStart(2, '0')} onChange={updateField} min="1" max="12" />
+              </label>
+            </div>
+            <label>
+              月間生活費予算
+              <AmountInput name="amount" value={form.amount} onChange={updateField} />
+            </label>
+            {error && <p className="form-error">{error}</p>}
+            {message && <p className="form-success">{message}</p>}
+            <button className="primary-button" type="submit">
+              {budget ? '予算を更新' : '予算を設定'}
+            </button>
+          </form>
+        </section>
       </section>
     </section>
   );

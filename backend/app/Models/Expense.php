@@ -20,7 +20,7 @@ class Expense extends Model
     ];
 
     protected $casts = [
-        'spent_at' => 'date',
+        'spent_at' => 'date:Y-m-d',
     ];
 
     public function user(): BelongsTo

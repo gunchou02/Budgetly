@@ -16,6 +16,7 @@ class Category extends Model
         'name',
         'color',
         'icon',
+        'type',
         'sort_order',
         'is_default',
     ];

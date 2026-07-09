@@ -6,7 +6,6 @@ import { AuthProvider } from './auth/AuthContext.jsx';
 import ProtectedRoute from './auth/ProtectedRoute.jsx';
 import AuthPage from './pages/AuthPage.jsx';
 import DashboardPage from './pages/DashboardPage.jsx';
-import ExpensesPage from './pages/ExpensesPage.jsx';
 import SubscriptionsPage from './pages/SubscriptionsPage.jsx';
 import BudgetsPage from './pages/BudgetsPage.jsx';
 import ReportsPage from './pages/ReportsPage.jsx';
@@ -23,7 +22,7 @@ ReactDOM.createRoot(document.getElementById('root')).render(
             <Route path="/" element={<App />}>
               <Route index element={<Navigate to="/dashboard" replace />} />
               <Route path="dashboard" element={<DashboardPage />} />
-              <Route path="expenses" element={<ExpensesPage />} />
+              <Route path="expenses" element={<Navigate to="/dashboard" replace />} />
               <Route path="subscriptions" element={<SubscriptionsPage />} />
               <Route path="budgets" element={<BudgetsPage />} />
               <Route path="reports" element={<ReportsPage />} />

@@ -46,15 +46,25 @@ class MonthlyBudgetReportService
             ->whereDate('started_at', '<=', $monthEnd->toDateString())
             ->get()
             ->filter(function ($subscription) use ($monthStart): bool {
-                $billingDate = $monthStart->day(min($subscription->billing_day, $monthStart->daysInMonth));
-
-                if ($subscription->started_at->greaterThan($billingDate)) {
-                    return false;
-                }
+                $billingDate = $this->resolveSubscriptionOccurrenceDate($subscription, $monthStart);
 
                 return $subscription->canceled_at === null || $subscription->canceled_at->greaterThanOrEqualTo($billingDate);
             })
             ->sum('amount');
+    }
+
+    private function resolveSubscriptionOccurrenceDate($subscription, CarbonImmutable $monthStart): CarbonImmutable
+    {
+        $billingDate = $monthStart->day(min($subscription->billing_day, $monthStart->daysInMonth));
+
+        if (
+            $subscription->started_at->isSameMonth($monthStart)
+            && $subscription->started_at->greaterThan($billingDate)
+        ) {
+            return CarbonImmutable::parse($subscription->started_at->toDateString(), config('app.timezone'));
+        }
+
+        return $billingDate;
     }
 
     private function resolveStatus(int $budgetAmount, int $totalSpent, float $usageRate): string

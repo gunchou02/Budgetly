@@ -18,6 +18,7 @@ class DefaultCategorySeeder extends Seeder
                 [
                     'color' => $category['color'],
                     'icon' => $category['icon'],
+                    'type' => $category['type'] ?? 'expense',
                     'sort_order' => $index + 1,
                     'is_default' => true,
                 ]

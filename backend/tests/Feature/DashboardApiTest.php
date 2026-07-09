@@ -114,7 +114,7 @@ class DashboardApiTest extends TestCase
             ->assertJsonPath('data.status', 'over_budget');
     }
 
-    public function test_dashboard_counts_subscription_only_when_billing_date_is_active(): void
+    public function test_dashboard_counts_subscription_when_monthly_occurrence_is_active(): void
     {
         [$user, $token] = $this->registerUser();
         $category = $user->categories()->where('name', 'サブスク')->firstOrFail();
@@ -161,7 +161,7 @@ class DashboardApiTest extends TestCase
         $this->withToken($token)
             ->getJson('/api/dashboard?year=2026&month=7')
             ->assertOk()
-            ->assertJsonPath('data.subscription_total', 1000);
+            ->assertJsonPath('data.subscription_total', 4000);
     }
 
     public function test_dashboard_uses_only_authenticated_users_data(): void

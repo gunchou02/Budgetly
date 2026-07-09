@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react';
 import { apiClient, getApiErrorMessage } from '../api/client';
-import { formatYen, getCurrentYearMonth } from '../utils/formatters';
+import AmountInput from '../components/AmountInput';
+import { formatDateValue, formatYen, getCurrentYearMonth, getDateValue } from '../utils/formatters';
 
 function ExpensesPage() {
   const current = getCurrentYearMonth();
@@ -15,7 +16,7 @@ function ExpensesPage() {
     category_id: '',
     title: '',
     amount: '',
-    spent_at: new Date().toISOString().slice(0, 10),
+    spent_at: formatDateValue(),
     memo: '',
   });
   const [editingId, setEditingId] = useState(null);
@@ -23,7 +24,7 @@ function ExpensesPage() {
 
   useEffect(() => {
     apiClient
-      .get('/categories')
+      .get('/categories', { params: { type: 'expense' } })
       .then((response) => {
         setCategories(response.data.data);
         setForm((currentForm) => ({
@@ -78,7 +79,7 @@ function ExpensesPage() {
       category_id: expense.category_id,
       title: expense.title,
       amount: expense.amount,
-      spent_at: expense.spent_at.slice(0, 10),
+      spent_at: getDateValue(expense.spent_at),
       memo: expense.memo ?? '',
     });
   }
@@ -89,7 +90,7 @@ function ExpensesPage() {
       category_id: categories[0]?.id ?? '',
       title: '',
       amount: '',
-      spent_at: new Date().toISOString().slice(0, 10),
+      spent_at: formatDateValue(),
       memo: '',
     });
   }
@@ -133,8 +134,8 @@ function ExpensesPage() {
     <section className="page-stack">
       <header className="page-header">
         <div>
-          <p className="eyebrow">Expenses</p>
-          <h1>支出</h1>
+          <p className="eyebrow">Details</p>
+          <h1>明細</h1>
         </div>
       </header>
 
@@ -165,7 +166,7 @@ function ExpensesPage() {
             </label>
             <label>
               金額
-              <input name="amount" type="number" value={form.amount} onChange={updateForm} min="1" required />
+              <AmountInput name="amount" value={form.amount} onChange={updateForm} required />
             </label>
           </div>
           <label>
@@ -205,7 +206,7 @@ function ExpensesPage() {
         <div className="data-table">
           {expenses.map((expense) => (
             <div className="table-row" key={expense.id}>
-              <span>{expense.spent_at.slice(0, 10)}</span>
+              <span>{getDateValue(expense.spent_at)}</span>
               <strong>{expense.title}</strong>
               <span>{expense.category?.name}</span>
               <strong>{formatYen(expense.amount)}</strong>
