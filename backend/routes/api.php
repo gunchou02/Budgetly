@@ -5,6 +5,7 @@ use App\Http\Controllers\Api\CategoryController;
 use App\Http\Controllers\Api\DashboardController;
 use App\Http\Controllers\Api\ExpenseController;
 use App\Http\Controllers\Api\MonthlyBudgetController;
+use App\Http\Controllers\Api\ReportController;
 use App\Http\Controllers\Api\SubscriptionController;
 use Illuminate\Support\Facades\Route;
 
@@ -43,4 +44,7 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::put('/subscriptions/{subscription}', [SubscriptionController::class, 'update']);
     Route::patch('/subscriptions/{subscription}/cancel', [SubscriptionController::class, 'cancel']);
     Route::delete('/subscriptions/{subscription}', [SubscriptionController::class, 'destroy']);
+
+    Route::get('/reports/categories', [ReportController::class, 'categories']);
+    Route::get('/reports/monthly', [ReportController::class, 'monthly']);
 });
