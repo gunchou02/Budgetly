@@ -59,10 +59,12 @@ Budgetly/
 ### Docker
 
 ```bash
+cp .env.example .env
 docker compose up -d
 ```
 
 Docker Desktop must be running before using Docker Compose.
+On the first start, Composer and npm dependencies are installed automatically, then the application key, database migrations, and seed data are prepared.
 
 Default URLs:
 
@@ -70,6 +72,22 @@ Default URLs:
 Frontend: http://127.0.0.1:5173
 API:      http://127.0.0.1:8080/api
 ```
+
+Check container status and initialization logs:
+
+```bash
+docker compose ps
+docker compose logs -f backend
+```
+
+Run Laravel commands inside the backend container:
+
+```bash
+docker compose exec backend php artisan migrate:status
+docker compose exec backend composer test
+```
+
+To change the host ports or local database credentials, edit the root `.env` file before starting the containers. See [Docker Development](docs/docker.md) for the full setup and troubleshooting guide.
 
 ### Backend without Docker
 
@@ -145,6 +163,7 @@ npm run build
 
 - [API Documentation](docs/api.md)
 - [Database Documentation](docs/database.md)
+- [Docker Development](docs/docker.md)
 - [QA Checklist](docs/qa-checklist.md)
 - [Roadmap](docs/roadmap.md)
 

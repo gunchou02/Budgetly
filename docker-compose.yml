@@ -2,12 +2,13 @@ services:
   nginx:
     image: nginx:1.27-alpine
     ports:
-      - "8080:80"
+      - "${API_PORT:-8080}:80"
     volumes:
       - ./backend:/var/www/html
       - ./docker/nginx/default.conf:/etc/nginx/conf.d/default.conf
     depends_on:
-      - backend
+      backend:
+        condition: service_healthy
 
   backend:
     build:
@@ -15,39 +16,61 @@ services:
     working_dir: /var/www/html
     volumes:
       - ./backend:/var/www/html
+      - backend-vendor:/var/www/html/vendor
+      - ./docker/backend/entrypoint.sh:/usr/local/bin/budgetly-entrypoint:ro
+    entrypoint: ["/bin/sh", "/usr/local/bin/budgetly-entrypoint"]
+    command: ["php-fpm"]
     environment:
       APP_ENV: local
       APP_DEBUG: "true"
+      APP_URL: http://localhost:${API_PORT:-8080}
+      FRONTEND_URL: http://localhost:${FRONTEND_PORT:-5173}
       DB_CONNECTION: mysql
       DB_HOST: mysql
       DB_PORT: 3306
-      DB_DATABASE: budgetly
-      DB_USERNAME: budgetly
-      DB_PASSWORD: secret
+      DB_DATABASE: ${DB_DATABASE:-budgetly}
+      DB_USERNAME: ${DB_USERNAME:-budgetly}
+      DB_PASSWORD: ${DB_PASSWORD:-secret}
     depends_on:
-      - mysql
+      mysql:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD-SHELL", "pidof php-fpm >/dev/null || exit 1"]
+      interval: 5s
+      timeout: 3s
+      retries: 12
+      start_period: 30s
 
   frontend:
     image: node:22-alpine
     working_dir: /app
     ports:
-      - "5173:5173"
+      - "${FRONTEND_PORT:-5173}:5173"
     volumes:
       - ./frontend:/app
-    command: sh -c "npm install && npm run dev -- --host 0.0.0.0"
+      - frontend-node-modules:/app/node_modules
+    command: sh -c "npm ci && npm run dev -- --host 0.0.0.0"
 
   mysql:
     image: mysql:8.4
     ports:
-      - "3306:3306"
+      - "${MYSQL_PORT:-3306}:3306"
     environment:
-      MYSQL_DATABASE: budgetly
-      MYSQL_USER: budgetly
-      MYSQL_PASSWORD: secret
-      MYSQL_ROOT_PASSWORD: root
+      MYSQL_DATABASE: ${DB_DATABASE:-budgetly}
+      MYSQL_USER: ${DB_USERNAME:-budgetly}
+      MYSQL_PASSWORD: ${DB_PASSWORD:-secret}
+      MYSQL_ROOT_PASSWORD: ${DB_ROOT_PASSWORD:-root}
       TZ: Asia/Tokyo
     volumes:
       - mysql-data:/var/lib/mysql
+    healthcheck:
+      test: ["CMD-SHELL", "mysqladmin ping -h 127.0.0.1 -uroot -p\"$${MYSQL_ROOT_PASSWORD}\" --silent"]
+      interval: 5s
+      timeout: 5s
+      retries: 12
+      start_period: 20s
 
 volumes:
+  backend-vendor:
+  frontend-node-modules:
   mysql-data:

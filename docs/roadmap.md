@@ -68,44 +68,25 @@ Budgetlyの実装フェーズです。
 - Roadmap documentation
 - Build/test verification
 
-## Next Phases
-
 ### Phase 8: Frontend QA and Minor UI Polish
-
-Purpose:
-
-```txt
-画面単位で実際の操作感を確認し、小さな崩れや分かりづらさを直す。
-```
-
-Candidate tasks:
 
 - PC and mobile viewport checks
 - Form validation message review
 - Loading and error state review
 - Chart readability review
 - Manual browser QA
-
-Out of scope:
-
-- Navigation redesign
-- Large UI redesign
-- New domain features
+- Docker API URL alignment
 
 ### Phase 9: Docker Development Environment Polish
 
-Purpose:
+- Automatic Composer and npm dependency setup
+- Automatic application key, migration, and seed setup
+- MySQL and backend health checks
+- Configurable local ports and database credentials
+- Docker command and troubleshooting documentation
+- Container-based build/test verification
 
-```txt
-Dockerだけで開発環境を立ち上げやすくする。
-```
-
-Candidate tasks:
-
-- Backend container dependency setup review
-- `.env` setup documentation
-- MySQL migration flow review
-- Docker command documentation
+## Next Phases
 
 ### Phase 10: Deployment Preparation
 

@@ -16,5 +16,11 @@ RUN apk add --no-cache \
     zip
 
 COPY --from=composer:2 /usr/bin/composer /usr/bin/composer
+COPY entrypoint.sh /usr/local/bin/budgetly-entrypoint
+
+RUN chmod +x /usr/local/bin/budgetly-entrypoint
 
 WORKDIR /var/www/html
+
+ENTRYPOINT ["budgetly-entrypoint"]
+CMD ["php-fpm"]
