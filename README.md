@@ -164,6 +164,8 @@ npm run build
 - [API Documentation](docs/api.md)
 - [Database Documentation](docs/database.md)
 - [Docker Development](docs/docker.md)
+- [Target Architecture](docs/architecture.md)
+- [Stack Migration Plan](docs/migration-plan.md)
 - [QA Checklist](docs/qa-checklist.md)
 - [Roadmap](docs/roadmap.md)
 

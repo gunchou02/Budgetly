@@ -86,57 +86,70 @@ Budgetlyの実装フェーズです。
 - Docker command and troubleshooting documentation
 - Container-based build/test verification
 
+### Phase 10: Architecture and Migration Design
+
+- Next.js, TypeScript, and Tailwind migration boundaries
+- Laravel and FastAPI service responsibilities
+- MySQL retention decision
+- Redis queue responsibility
+- Receipt OCR workflow and security constraints
+
 ## Next Phases
 
-### Phase 10: Deployment Preparation
+### Phase 11: Next.js Frontend Migration
 
-Purpose:
+- Next.js App Router
+- TypeScript strict mode
+- Tailwind CSS
+- Existing route and navigation parity
+- Typed Laravel API client
 
-```txt
-AWSなどにデプロイできる状態へ近づける。
-```
+### Phase 12: FastAPI Foundation
 
-Candidate tasks:
+- Internal AI service
+- Health and readiness endpoints
+- Pydantic contracts
+- OCR provider adapter
+- Docker integration
 
-- Production environment variables
-- Laravel config cache notes
-- Database migration strategy
-- Static frontend build strategy
-- CORS and API base URL review
+### Phase 13: Receipt Domain and Laravel Integration
 
-### Phase 11: Portfolio Polish
+- Receipt upload and status APIs
+- User-scoped authorization
+- Analysis review and confirmation
+- Expense creation transaction
 
-Purpose:
+### Phase 14: Redis Queue
 
-```txt
-採用担当者や面接官に説明しやすい状態にする。
-```
+- Asynchronous OCR processing
+- Retry and failure handling
+- Idempotent jobs
 
-Candidate tasks:
+### Phase 15: OCR and AI Analysis
 
-- Screenshots
-- Demo scenario
-- Architecture diagram
-- Japanese project description
-- Korean explanation for interview preparation
+- Japanese receipt OCR
+- Merchant, date, and total extraction
+- Category suggestion
+- Confidence reporting
 
-### Phase 12: Future Product Features
+### Phase 16: Integrated Docker and QA
 
-Purpose:
+- Next.js, Laravel, FastAPI, MySQL, and Redis integration
+- End-to-end receipt workflow
+- Failure and recovery QA
 
-```txt
-MVP後に追加する価値がある機能を実装する。
-```
+### Phase 17: GitHub Actions
 
-Candidate tasks:
+- Backend, frontend, and AI service checks
+- Docker build verification
+- Deployment gate
 
-- Category edit/delete
-- Password reset
-- Email verification
-- CSV export
-- Recurring expense improvements
-- Notification/reminder
-- iOS app planning
+### Phase 18: AWS Deployment
+
+- RDS MySQL
+- ElastiCache Redis
+- S3 receipt storage
+- HTTPS, secrets, logs, and backups
 
 ## Current Scope
 
@@ -152,12 +165,16 @@ Implemented:
 - React frontend API integration
 - Basic UX polish
 - Documentation
+- Target architecture and migration plan
 
 Not implemented yet:
 
 - Password reset
 - Email verification
 - Category update/delete
+- Next.js migration
+- Receipt OCR
+- Redis queue
 - AWS deployment
 - Production CI/CD
 - iOS app
