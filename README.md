@@ -13,15 +13,16 @@ Budgetlyは、20〜30代向けの月間生活費・支出・サブスク管理�
 - サブスクの登録・編集・解約・削除
 - ダッシュボードでの月次集計
 - カテゴリ別・月別レポート
-- ReactフロントエンドからのAPI連携
+- Next.jsフロントエンドからのAPI連携
 
 ## Tech Stack
 
 ### Frontend
 
-- React
-- Vite
-- React Router
+- Next.js 16
+- React 19
+- TypeScript
+- Tailwind CSS
 - Axios
 - Recharts
 - lucide-react
@@ -47,7 +48,7 @@ Budgetlyは、20〜30代向けの月間生活費・支出・サブスク管理�
 ```txt
 Budgetly/
 ├── backend/              # Laravel API
-├── frontend/             # React + Vite app
+├── frontend/             # Next.js + TypeScript app
 ├── docker/               # Docker settings
 ├── docs/                 # API, DB, QA, roadmap docs
 ├── docker-compose.yml
@@ -117,7 +118,7 @@ http://127.0.0.1:8080/api
 When using `php artisan serve --port=8081` instead of Docker nginx, set this in `frontend/.env`:
 
 ```txt
-VITE_API_BASE_URL=http://127.0.0.1:8081/api
+NEXT_PUBLIC_API_BASE_URL=http://127.0.0.1:8081/api
 ```
 
 Default frontend URL:
@@ -156,6 +157,8 @@ Frontend production build:
 
 ```bash
 cd frontend
+npm run typecheck
+npm run lint
 npm run build
 ```
 

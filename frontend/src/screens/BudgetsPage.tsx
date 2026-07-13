@@ -1,16 +1,26 @@
-import { useEffect, useState } from 'react';
+'use client';
+
+import { useEffect, useState, type FormEvent } from 'react';
 import { apiClient, getApiErrorMessage } from '../api/client';
 import AmountInput from '../components/AmountInput';
 import { formatMonthLabel, formatYen, getCurrentYearMonth } from '../utils/formatters';
+import type { ApiEnvelope, MonthlyBudget } from '@/types/api';
+import type { FormFieldEvent } from '@/types/forms';
+
+interface BudgetForm {
+  year: number;
+  month: number;
+  amount: number | string;
+}
 
 function BudgetsPage() {
   const current = getCurrentYearMonth();
-  const [form, setForm] = useState({
+  const [form, setForm] = useState<BudgetForm>({
     year: current.year,
     month: current.month,
-    amount: 40000,
+    amount: '',
   });
-  const [budget, setBudget] = useState(null);
+  const [budget, setBudget] = useState<MonthlyBudget | null>(null);
   const [error, setError] = useState('');
   const [message, setMessage] = useState('');
   const displayedAmount = budget?.amount ?? form.amount;
@@ -23,7 +33,7 @@ function BudgetsPage() {
       setMessage('');
 
       try {
-        const response = await apiClient.get('/budgets', {
+        const response = await apiClient.get<ApiEnvelope<MonthlyBudget | null>>('/budgets', {
           params: {
             year: form.year,
             month: form.month,
@@ -32,12 +42,10 @@ function BudgetsPage() {
 
         if (isActive) {
           setBudget(response.data.data);
-          if (response.data.data) {
-            setForm((currentForm) => ({
-              ...currentForm,
-              amount: response.data.data.amount,
-            }));
-          }
+          setForm((currentForm) => ({
+            ...currentForm,
+            amount: response.data.data?.amount ?? '',
+          }));
         }
       } catch (requestError) {
         if (isActive) {
@@ -53,14 +61,14 @@ function BudgetsPage() {
     };
   }, [form.year, form.month]);
 
-  function updateField(event) {
+  function updateField(event: FormFieldEvent) {
     setForm((currentForm) => ({
       ...currentForm,
       [event.target.name]: event.target.name === 'amount' ? event.target.value : Number(event.target.value),
     }));
   }
 
-  async function handleSubmit(event) {
+  async function handleSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
     setError('');
     setMessage('');
@@ -72,8 +80,8 @@ function BudgetsPage() {
         amount: form.amount,
       };
       const response = budget
-        ? await apiClient.put(`/budgets/${budget.id}`, payload)
-        : await apiClient.post('/budgets', payload);
+        ? await apiClient.put<ApiEnvelope<MonthlyBudget>>(`/budgets/${budget.id}`, payload)
+        : await apiClient.post<ApiEnvelope<MonthlyBudget>>('/budgets', payload);
 
       setBudget(response.data.data);
       setMessage('予算を保存しました。');

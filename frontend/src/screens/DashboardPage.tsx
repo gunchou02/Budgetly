@@ -1,12 +1,25 @@
-import { useCallback, useEffect, useState } from 'react';
+'use client';
+
+import { useCallback, useEffect, useState, type ChangeEvent } from 'react';
 import { Cell, Pie, PieChart, ResponsiveContainer } from 'recharts';
 import { apiClient, getApiErrorMessage } from '../api/client';
 import DailyExpenseList from '../components/DailyExpenseList';
 import ExpenseCalendar from '../components/ExpenseCalendar';
 import QuickExpensePanel from '../components/QuickExpensePanel';
 import { formatDateValue, formatMonthLabel, formatYen, getCurrentYearMonth } from '../utils/formatters';
+import type {
+  ApiEnvelope,
+  BudgetStatus,
+  Category,
+  CategoryReport,
+  DashboardSummary,
+  Expense,
+  ExpensePayload,
+  Subscription,
+  SubscriptionPayload,
+} from '@/types/api';
 
-const statusLabels = {
+const statusLabels: Record<BudgetStatus, string> = {
   safe: '余裕あり',
   warning: '注意',
   over_budget: '予算オーバー',
@@ -16,17 +29,17 @@ function DashboardPage() {
   const current = getCurrentYearMonth();
   const [filters, setFilters] = useState(current);
   const [selectedDate, setSelectedDate] = useState(() => formatDateValue());
-  const [dashboard, setDashboard] = useState(null);
-  const [categoryReport, setCategoryReport] = useState(null);
-  const [expenseCategories, setExpenseCategories] = useState([]);
-  const [expenses, setExpenses] = useState([]);
-  const [subscriptions, setSubscriptions] = useState([]);
-  const [editingExpense, setEditingExpense] = useState(null);
+  const [dashboard, setDashboard] = useState<DashboardSummary | null>(null);
+  const [categoryReport, setCategoryReport] = useState<CategoryReport | null>(null);
+  const [expenseCategories, setExpenseCategories] = useState<Category[]>([]);
+  const [expenses, setExpenses] = useState<Expense[]>([]);
+  const [subscriptions, setSubscriptions] = useState<Subscription[]>([]);
+  const [editingExpense, setEditingExpense] = useState<Expense | null>(null);
   const [error, setError] = useState('');
   const [isLoading, setIsLoading] = useState(true);
 
   const fetchDashboard = useCallback(
-    async (shouldUpdate = () => true) => {
+    async (shouldUpdate: () => boolean = () => true) => {
       try {
         setIsLoading(true);
         setError('');
@@ -36,11 +49,11 @@ function DashboardPage() {
           month: filters.month,
         };
         const [dashboardResponse, categoryResponse, categoriesResponse, expensesResponse, subscriptionResponse] = await Promise.all([
-          apiClient.get('/dashboard', { params }),
-          apiClient.get('/reports/categories', { params }),
-          apiClient.get('/categories', { params: { type: 'expense' } }),
-          apiClient.get('/expenses', { params }),
-          apiClient.get('/subscriptions', { params: { status: 'active' } }),
+          apiClient.get<ApiEnvelope<DashboardSummary>>('/dashboard', { params }),
+          apiClient.get<ApiEnvelope<CategoryReport>>('/reports/categories', { params }),
+          apiClient.get<ApiEnvelope<Category[]>>('/categories', { params: { type: 'expense' } }),
+          apiClient.get<ApiEnvelope<Expense[]>>('/expenses', { params }),
+          apiClient.get<ApiEnvelope<Subscription[]>>('/subscriptions', { params: { status: 'active' } }),
         ]);
 
         if (shouldUpdate()) {
@@ -73,7 +86,7 @@ function DashboardPage() {
     };
   }, [fetchDashboard]);
 
-  function updateFilter(event) {
+  function updateFilter(event: ChangeEvent<HTMLSelectElement>) {
     const nextValue = Number(event.target.value);
 
     setFilters((currentFilters) => ({
@@ -90,7 +103,7 @@ function DashboardPage() {
     });
   }
 
-  async function createExpense(payload) {
+  async function createExpense(payload: ExpensePayload) {
     setError('');
 
     try {
@@ -101,7 +114,7 @@ function DashboardPage() {
     }
   }
 
-  async function createRecurringExpense(payload) {
+  async function createRecurringExpense(payload: SubscriptionPayload) {
     setError('');
 
     try {
@@ -112,7 +125,7 @@ function DashboardPage() {
     }
   }
 
-  async function updateExpense(expenseId, payload) {
+  async function updateExpense(expenseId: number, payload: ExpensePayload) {
     setError('');
 
     try {
@@ -124,7 +137,7 @@ function DashboardPage() {
     }
   }
 
-  async function deleteExpense(expenseId) {
+  async function deleteExpense(expenseId: number) {
     setError('');
 
     try {

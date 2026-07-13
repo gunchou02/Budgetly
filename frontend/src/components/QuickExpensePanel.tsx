@@ -1,6 +1,28 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useState, type FormEvent } from 'react';
 import { getDateValue } from '../utils/formatters';
 import AmountInput from './AmountInput';
+import type { Category, Expense, ExpensePayload, SubscriptionPayload } from '@/types/api';
+import type { FormFieldEvent } from '@/types/forms';
+
+interface QuickExpenseForm {
+  category_id: number | string;
+  title: string;
+  amount: number | string;
+  spent_at: string;
+  is_recurring: boolean;
+  memo: string;
+}
+
+interface QuickExpensePanelProps {
+  categories: Category[];
+  selectedDate: string;
+  onSelectDate: (date: string) => void;
+  onCreate: (payload: ExpensePayload) => Promise<void>;
+  onCreateRecurring: (payload: SubscriptionPayload) => Promise<void>;
+  onUpdate: (expenseId: number, payload: ExpensePayload) => Promise<void>;
+  editingExpense: Expense | null;
+  onClearEditing?: () => void;
+}
 
 function QuickExpensePanel({
   categories,
@@ -11,10 +33,10 @@ function QuickExpensePanel({
   onUpdate,
   editingExpense,
   onClearEditing = () => {},
-}) {
+}: QuickExpensePanelProps) {
   const defaultCategoryId = categories[0]?.id ?? '';
-  const [editingId, setEditingId] = useState(null);
-  const [form, setForm] = useState({
+  const [editingId, setEditingId] = useState<number | null>(null);
+  const [form, setForm] = useState<QuickExpenseForm>({
     category_id: defaultCategoryId,
     title: '',
     amount: '',
@@ -51,7 +73,7 @@ function QuickExpensePanel({
     });
   }, [editingExpense]);
 
-  function updateForm(event) {
+  function updateForm(event: FormFieldEvent) {
     setForm((currentForm) => ({
       ...currentForm,
       [event.target.name]: event.target.type === 'checkbox' ? event.target.checked : event.target.value,
@@ -71,7 +93,7 @@ function QuickExpensePanel({
     });
   }
 
-  async function handleSubmit(event) {
+  async function handleSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
 
     const payload = {

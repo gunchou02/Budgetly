@@ -24,7 +24,7 @@ The backend container performs the following idempotent initialization before PH
 3. Generates `APP_KEY` when it is missing.
 4. Runs database migrations and the default category seeder.
 
-The frontend container installs the exact packages from `package-lock.json` in the `frontend-node-modules` volume before starting Vite.
+The frontend container installs the exact packages from `package-lock.json` in the `frontend-node-modules` volume before starting the Next.js development server.
 
 Default endpoints:
 
@@ -75,7 +75,7 @@ These credentials are development defaults. Do not reuse them in staging or prod
 When `FRONTEND_PORT` or `API_PORT` is changed, also update `frontend/.env` so the browser uses the matching API URL:
 
 ```dotenv
-VITE_API_BASE_URL=http://127.0.0.1:8080/api
+NEXT_PUBLIC_API_BASE_URL=http://127.0.0.1:8080/api
 ```
 
 ## Reset Local Data

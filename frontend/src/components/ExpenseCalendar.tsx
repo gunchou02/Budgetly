@@ -1,16 +1,23 @@
 import { formatDateValue, getDateValue, formatYen } from '../utils/formatters';
 import { getSubscriptionOccurrenceDate } from '../utils/subscriptions';
+import type { Expense, Subscription } from '@/types/api';
 
 const weekDays = ['日', '月', '火', '水', '木', '金', '土'];
 
-function buildDateValue(year, month, day) {
+function buildDateValue(year: number, month: number, day: number) {
   return `${year}-${String(month).padStart(2, '0')}-${String(day).padStart(2, '0')}`;
 }
 
-function buildCalendarDays(year, month) {
+interface CalendarDay {
+  day: number;
+  date: string;
+  weekDay: number;
+}
+
+function buildCalendarDays(year: number, month: number) {
   const firstDay = new Date(year, month - 1, 1);
   const lastDate = new Date(year, month, 0).getDate();
-  const days = [];
+  const days: Array<CalendarDay | null> = [];
 
   for (let index = 0; index < firstDay.getDay(); index += 1) {
     days.push(null);
@@ -29,15 +36,30 @@ function buildCalendarDays(year, month) {
   return days;
 }
 
-function ExpenseCalendar({ year, month, expenses, subscriptions, selectedDate, onSelectDate }) {
+interface ExpenseCalendarProps {
+  year: number;
+  month: number;
+  expenses: Expense[];
+  subscriptions: Subscription[];
+  selectedDate: string;
+  onSelectDate: (date: string) => void;
+}
+
+interface CalendarSubscriptionItem {
+  id: string;
+  name: string;
+  amount: number;
+}
+
+function ExpenseCalendar({ year, month, expenses, subscriptions, selectedDate, onSelectDate }: ExpenseCalendarProps) {
   const calendarDays = buildCalendarDays(year, month);
   const today = formatDateValue();
-  const expenseTotalsByDate = expenses.reduce((totals, expense) => {
+  const expenseTotalsByDate = expenses.reduce<Record<string, number>>((totals, expense) => {
     const date = getDateValue(expense.spent_at);
     totals[date] = (totals[date] ?? 0) + Number(expense.amount);
     return totals;
   }, {});
-  const recurringItemsByDate = subscriptions.reduce((items, subscription) => {
+  const recurringItemsByDate = subscriptions.reduce<Record<string, CalendarSubscriptionItem[]>>((items, subscription) => {
     const occurrenceDate = getSubscriptionOccurrenceDate(year, month, subscription);
 
     if (occurrenceDate) {

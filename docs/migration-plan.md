@@ -32,6 +32,8 @@ Completion criteria:
 
 ## Phase 11: Next.js, TypeScript, and Tailwind Migration
 
+Status: completed
+
 Approach:
 
 1. Create a Next.js App Router project in the existing `frontend` boundary.

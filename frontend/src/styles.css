@@ -1,3 +1,12 @@
+@import "tailwindcss";
+
+@theme {
+  --color-budgetly-ink: #111827;
+  --color-budgetly-canvas: #f6f7f9;
+  --color-budgetly-accent: #3730a3;
+  --color-budgetly-subscription: #be185d;
+}
+
 :root {
   color: #1f2937;
   background: #f6f7f9;

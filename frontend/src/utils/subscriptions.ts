@@ -1,13 +1,14 @@
 import { getDateValue } from './formatters';
+import type { Subscription } from '@/types/api';
 
-export function getSubscriptionBillingDate(year, month, subscription) {
+export function getSubscriptionBillingDate(year: number, month: number, subscription: Subscription) {
   const lastDate = new Date(year, month, 0).getDate();
   const billingDay = Math.min(Number(subscription.billing_day), lastDate);
 
   return `${year}-${String(month).padStart(2, '0')}-${String(billingDay).padStart(2, '0')}`;
 }
 
-export function getSubscriptionOccurrenceDate(year, month, subscription) {
+export function getSubscriptionOccurrenceDate(year: number, month: number, subscription: Subscription) {
   const billingDate = getSubscriptionBillingDate(year, month, subscription);
   const startedAt = getDateValue(subscription.started_at);
   const canceledAt = getDateValue(subscription.canceled_at);
@@ -26,7 +27,7 @@ export function getSubscriptionOccurrenceDate(year, month, subscription) {
   return occurrenceDate;
 }
 
-export function isSubscriptionBillableOnDate(subscription, billingDate) {
+export function isSubscriptionBillableOnDate(subscription: Subscription, billingDate: string) {
   const startedAt = getDateValue(subscription.started_at);
   const canceledAt = getDateValue(subscription.canceled_at);
 

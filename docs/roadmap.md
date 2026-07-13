@@ -94,8 +94,6 @@ Budgetlyの実装フェーズです。
 - Redis queue responsibility
 - Receipt OCR workflow and security constraints
 
-## Next Phases
-
 ### Phase 11: Next.js Frontend Migration
 
 - Next.js App Router
@@ -103,6 +101,9 @@ Budgetlyの実装フェーズです。
 - Tailwind CSS
 - Existing route and navigation parity
 - Typed Laravel API client
+- Docker and browser QA
+
+## Next Phases
 
 ### Phase 12: FastAPI Foundation
 
@@ -162,7 +163,7 @@ Implemented:
 - Subscriptions
 - Dashboard summary
 - Reports
-- React frontend API integration
+- Next.js frontend API integration
 - Basic UX polish
 - Documentation
 - Target architecture and migration plan
@@ -172,7 +173,6 @@ Not implemented yet:
 - Password reset
 - Email verification
 - Category update/delete
-- Next.js migration
 - Receipt OCR
 - Redis queue
 - AWS deployment

@@ -1,13 +1,27 @@
-import { useState } from 'react';
-import { Link, Navigate, useNavigate } from 'react-router-dom';
-import { getApiErrorMessage } from '../api/client';
-import { useAuth } from '../auth/AuthContext';
+'use client';
 
-function AuthPage({ mode }) {
+import Link from 'next/link';
+import { useRouter } from 'next/navigation';
+import { useEffect, useState, type ChangeEvent, type FormEvent } from 'react';
+import { getApiErrorMessage } from '@/api/client';
+import { useAuth } from '@/auth/AuthContext';
+
+interface AuthPageProps {
+  mode: 'login' | 'register';
+}
+
+interface AuthForm {
+  name: string;
+  email: string;
+  password: string;
+  password_confirmation: string;
+}
+
+export default function AuthPage({ mode }: AuthPageProps) {
   const isRegister = mode === 'register';
-  const navigate = useNavigate();
-  const { isAuthenticated, login, register } = useAuth();
-  const [form, setForm] = useState({
+  const router = useRouter();
+  const { isAuthenticated, isBootstrapping, login, register } = useAuth();
+  const [form, setForm] = useState<AuthForm>({
     name: '',
     email: '',
     password: '',
@@ -16,18 +30,20 @@ function AuthPage({ mode }) {
   const [error, setError] = useState('');
   const [isSubmitting, setIsSubmitting] = useState(false);
 
-  if (isAuthenticated) {
-    return <Navigate to="/dashboard" replace />;
-  }
+  useEffect(() => {
+    if (!isBootstrapping && isAuthenticated) {
+      router.replace('/dashboard');
+    }
+  }, [isAuthenticated, isBootstrapping, router]);
 
-  function updateField(event) {
+  function updateField(event: ChangeEvent<HTMLInputElement>) {
     setForm((current) => ({
       ...current,
       [event.target.name]: event.target.value,
     }));
   }
 
-  async function handleSubmit(event) {
+  async function handleSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
     setError('');
     setIsSubmitting(true);
@@ -42,12 +58,16 @@ function AuthPage({ mode }) {
         });
       }
 
-      navigate('/dashboard');
+      router.push('/dashboard');
     } catch (requestError) {
       setError(getApiErrorMessage(requestError));
     } finally {
       setIsSubmitting(false);
     }
+  }
+
+  if (isBootstrapping || isAuthenticated) {
+    return <div className="loading-screen">読み込み中...</div>;
   }
 
   return (
@@ -99,11 +119,9 @@ function AuthPage({ mode }) {
 
         <p className="auth-switch">
           {isRegister ? 'すでにアカウントがありますか？' : 'アカウントをお持ちではありませんか？'}{' '}
-          <Link to={isRegister ? '/login' : '/register'}>{isRegister ? 'ログイン' : '登録する'}</Link>
+          <Link href={isRegister ? '/login' : '/register'}>{isRegister ? 'ログイン' : '登録する'}</Link>
         </p>
       </section>
     </main>
   );
 }
-
-export default AuthPage;

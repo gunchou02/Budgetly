@@ -1,7 +1,16 @@
 import { formatYen, getDateValue } from '../utils/formatters';
 import { getSubscriptionOccurrenceDate } from '../utils/subscriptions';
+import type { Expense, Subscription } from '@/types/api';
 
-function DailyExpenseList({ expenses, subscriptions, selectedDate, onEdit, onDelete }) {
+interface DailyExpenseListProps {
+  expenses: Expense[];
+  subscriptions: Subscription[];
+  selectedDate: string;
+  onEdit: (expense: Expense) => void;
+  onDelete: (expenseId: number) => Promise<void>;
+}
+
+function DailyExpenseList({ expenses, subscriptions, selectedDate, onEdit, onDelete }: DailyExpenseListProps) {
   const [year, month] = selectedDate.split('-').map(Number);
   const selectedExpenses = expenses.filter((expense) => getDateValue(expense.spent_at) === selectedDate);
   const selectedSubscriptions = subscriptions.filter((subscription) => {

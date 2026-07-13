@@ -1,7 +1,10 @@
-import { useEffect, useState } from 'react';
+'use client';
+
+import { useEffect, useState, type ChangeEvent } from 'react';
 import { Bar, BarChart, CartesianGrid, ResponsiveContainer, Tooltip, XAxis, YAxis } from 'recharts';
 import { apiClient, getApiErrorMessage } from '../api/client';
 import { formatYen, getCurrentYearMonth } from '../utils/formatters';
+import type { ApiEnvelope, CategoryReport, MonthlyReport } from '@/types/api';
 
 function ReportsPage() {
   const current = getCurrentYearMonth();
@@ -9,8 +12,8 @@ function ReportsPage() {
     year: current.year,
     month: current.month,
   });
-  const [categoryReport, setCategoryReport] = useState(null);
-  const [monthlyReport, setMonthlyReport] = useState(null);
+  const [categoryReport, setCategoryReport] = useState<CategoryReport | null>(null);
+  const [monthlyReport, setMonthlyReport] = useState<MonthlyReport | null>(null);
   const [error, setError] = useState('');
 
   useEffect(() => {
@@ -21,13 +24,13 @@ function ReportsPage() {
 
       try {
         const [categoryResponse, monthlyResponse] = await Promise.all([
-          apiClient.get('/reports/categories', {
+          apiClient.get<ApiEnvelope<CategoryReport>>('/reports/categories', {
             params: {
               year: filters.year,
               month: filters.month,
             },
           }),
-          apiClient.get('/reports/monthly', {
+          apiClient.get<ApiEnvelope<MonthlyReport>>('/reports/monthly', {
             params: {
               year: filters.year,
             },
@@ -52,7 +55,7 @@ function ReportsPage() {
     };
   }, [filters]);
 
-  function updateFilter(event) {
+  function updateFilter(event: ChangeEvent<HTMLInputElement>) {
     setFilters((currentFilters) => ({
       ...currentFilters,
       [event.target.name]: Number(event.target.value),
@@ -108,7 +111,7 @@ function ReportsPage() {
             <CartesianGrid strokeDasharray="3 3" vertical={false} />
             <XAxis dataKey="label" />
             <YAxis tickFormatter={(value) => `¥${value / 1000}k`} />
-            <Tooltip formatter={(value) => formatYen(value)} />
+            <Tooltip formatter={(value) => formatYen(value as number)} />
             <Bar dataKey="expense_total" name="通常支出" fill="#2563EB" radius={[4, 4, 0, 0]} />
             <Bar dataKey="subscription_total" name="サブスク" fill="#DB2777" radius={[4, 4, 0, 0]} />
           </BarChart>

@@ -1,20 +1,35 @@
-import { useEffect, useState } from 'react';
+'use client';
+
+import { useCallback, useEffect, useState, type FormEvent } from 'react';
 import { apiClient, getApiErrorMessage } from '../api/client';
 import AmountInput from '../components/AmountInput';
 import { formatDateValue, formatYen, getDateValue } from '../utils/formatters';
+import type { ApiEnvelope, Category, Subscription, SubscriptionPayload } from '@/types/api';
+import type { FormFieldEvent } from '@/types/forms';
 
-function getDayFromDateValue(dateValue) {
+type SubscriptionStatus = 'active' | 'canceled' | 'all';
+
+interface SubscriptionForm {
+  category_id: number | string;
+  name: string;
+  amount: number | string;
+  billing_day: number | string;
+  started_at: string;
+  memo: string;
+}
+
+function getDayFromDateValue(dateValue: string) {
   return Number(dateValue.split('-')[2]);
 }
 
-export function SubscriptionsManager({ showHeader = true }) {
+export function SubscriptionsManager({ showHeader = true }: { showHeader?: boolean }) {
   const today = formatDateValue();
-  const [categories, setCategories] = useState([]);
-  const [subscriptions, setSubscriptions] = useState([]);
-  const [activeSubscriptions, setActiveSubscriptions] = useState([]);
+  const [categories, setCategories] = useState<Category[]>([]);
+  const [subscriptions, setSubscriptions] = useState<Subscription[]>([]);
+  const [activeSubscriptions, setActiveSubscriptions] = useState<Subscription[]>([]);
   const [newCategoryName, setNewCategoryName] = useState('');
-  const [status, setStatus] = useState('active');
-  const [form, setForm] = useState({
+  const [status, setStatus] = useState<SubscriptionStatus>('active');
+  const [form, setForm] = useState<SubscriptionForm>({
     category_id: '',
     name: '',
     amount: '',
@@ -22,18 +37,18 @@ export function SubscriptionsManager({ showHeader = true }) {
     started_at: today,
     memo: '',
   });
-  const [editingId, setEditingId] = useState(null);
+  const [editingId, setEditingId] = useState<number | null>(null);
   const [error, setError] = useState('');
 
   useEffect(() => {
     fetchCategories();
   }, []);
 
-  async function fetchCategories(selectedCategoryId = '') {
+  async function fetchCategories(selectedCategoryId: number | string = '') {
     setError('');
 
     try {
-      const response = await apiClient.get('/categories', { params: { type: 'fixed' } });
+      const response = await apiClient.get<ApiEnvelope<Category[]>>('/categories', { params: { type: 'fixed' } });
       setCategories(response.data.data);
       const subscriptionCategory = response.data.data.find((category) => category.name === 'サブスク');
 
@@ -46,19 +61,15 @@ export function SubscriptionsManager({ showHeader = true }) {
     }
   }
 
-  useEffect(() => {
-    fetchSubscriptions();
-  }, [status]);
-
-  async function fetchSubscriptions() {
+  const fetchSubscriptions = useCallback(async () => {
     setError('');
 
     try {
       const [listResponse, activeResponse] = await Promise.all([
-        apiClient.get('/subscriptions', {
+        apiClient.get<ApiEnvelope<Subscription[]>>('/subscriptions', {
           params: { status },
         }),
-        apiClient.get('/subscriptions', {
+        apiClient.get<ApiEnvelope<Subscription[]>>('/subscriptions', {
           params: { status: 'active' },
         }),
       ]);
@@ -67,9 +78,13 @@ export function SubscriptionsManager({ showHeader = true }) {
     } catch (requestError) {
       setError(getApiErrorMessage(requestError));
     }
-  }
+  }, [status]);
 
-  function updateForm(event) {
+  useEffect(() => {
+    fetchSubscriptions();
+  }, [fetchSubscriptions]);
+
+  function updateForm(event: FormFieldEvent) {
     const { name, value } = event.target;
 
     setForm((currentForm) => ({
@@ -78,7 +93,7 @@ export function SubscriptionsManager({ showHeader = true }) {
     }));
   }
 
-  function startEdit(subscription) {
+  function startEdit(subscription: Subscription) {
     setEditingId(subscription.id);
     setForm({
       category_id: subscription.category_id,
@@ -115,7 +130,7 @@ export function SubscriptionsManager({ showHeader = true }) {
     setError('');
 
     try {
-      const response = await apiClient.post('/categories', {
+      const response = await apiClient.post<ApiEnvelope<Category>>('/categories', {
         name,
         type: 'fixed',
       });
@@ -127,12 +142,12 @@ export function SubscriptionsManager({ showHeader = true }) {
     }
   }
 
-  async function handleSubmit(event) {
+  async function handleSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
     setError('');
 
     try {
-      const payload = {
+      const payload: SubscriptionPayload = {
         ...form,
         category_id: Number(form.category_id),
         amount: Number(form.amount),
@@ -153,7 +168,7 @@ export function SubscriptionsManager({ showHeader = true }) {
     }
   }
 
-  async function cancelSubscription(subscriptionId) {
+  async function cancelSubscription(subscriptionId: number) {
     setError('');
 
     try {
@@ -164,7 +179,7 @@ export function SubscriptionsManager({ showHeader = true }) {
     }
   }
 
-  async function deleteSubscription(subscriptionId) {
+  async function deleteSubscription(subscriptionId: number) {
     setError('');
 
     try {
@@ -282,7 +297,7 @@ export function SubscriptionsManager({ showHeader = true }) {
       <section className="panel">
         <div className="panel-header split">
           <h2>固定費一覧</h2>
-          <select value={status} onChange={(event) => setStatus(event.target.value)}>
+          <select value={status} onChange={(event) => setStatus(event.target.value as SubscriptionStatus)}>
             <option value="active">有効</option>
             <option value="canceled">解約済み</option>
             <option value="all">すべて</option>

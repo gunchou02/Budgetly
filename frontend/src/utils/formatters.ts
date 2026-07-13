@@ -1,4 +1,4 @@
-export function formatYen(value) {
+export function formatYen(value: number | string | null | undefined) {
   return new Intl.NumberFormat('ja-JP', {
     style: 'currency',
     currency: 'JPY',
@@ -19,7 +19,7 @@ export function formatDateValue(date = new Date()) {
   return `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}-${String(date.getDate()).padStart(2, '0')}`;
 }
 
-export function getDateValue(value) {
+export function getDateValue(value: string | Date | null | undefined) {
   if (!value) {
     return '';
   }
@@ -31,6 +31,6 @@ export function getDateValue(value) {
   return formatDateValue(new Date(value));
 }
 
-export function formatMonthLabel(year, month) {
+export function formatMonthLabel(year: number, month: number) {
   return `${year}年${month}月`;
 }
