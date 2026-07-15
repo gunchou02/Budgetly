@@ -187,6 +187,31 @@ Notes:
 - `confidence`はフィールド別信頼度をJSONで保存します。
 - 分析値から支出を自動作成せず、ユーザーが確認APIを実行した場合だけ`expenses`へ保存します。
 
+## failed_jobs
+
+Laravel queueが再試行上限に達したjobを保存します。Redis自体はqueue transportであり、レシート処理の業務状態は`receipts.status`を正本とします。
+
+Main columns:
+
+```txt
+id
+uuid
+connection
+queue
+payload
+exception
+failed_at
+```
+
+Constraints:
+
+- `uuid` is unique.
+
+Notes:
+
+- レシートjob payloadには`receipt_id`だけを持たせ、画像本文や内部API tokenを含めません。
+- ユーザー向けの安全な失敗理由は`receipts.failure_code`と`failure_message`に保存します。
+
 ## subscriptions
 
 月額サブスクを管理します。

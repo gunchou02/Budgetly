@@ -3,15 +3,21 @@
 namespace Tests\Feature;
 
 use App\Enums\ReceiptStatus;
+use App\Jobs\AnalyzeReceipt;
 use App\Models\Category;
 use App\Models\Receipt;
 use App\Models\User;
+use Illuminate\Bus\UniqueLock;
+use Illuminate\Contracts\Bus\Dispatcher;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Http\Testing\File;
 use Illuminate\Http\UploadedFile;
 use Illuminate\Support\Facades\Auth;
+use Illuminate\Support\Facades\Cache;
+use Illuminate\Support\Facades\Queue;
 use Illuminate\Support\Facades\Storage;
 use Illuminate\Testing\TestResponse;
+use Mockery;
 use RuntimeException;
 use Tests\TestCase;
 
@@ -24,6 +30,8 @@ class ReceiptApiTest extends TestCase
         parent::setUp();
 
         Storage::fake('local');
+        config(['cache.stores.redis' => ['driver' => 'array']]);
+        Queue::fake();
     }
 
     public function test_receipt_upload_requires_authentication(): void
@@ -56,6 +64,42 @@ class ReceiptApiTest extends TestCase
         $this->assertStringStartsWith("receipts/{$user->id}/", $receipt->image_path);
         Storage::disk('local')->assertExists($receipt->image_path);
         $this->assertDatabaseCount('expenses', 0);
+        Queue::assertPushed(
+            AnalyzeReceipt::class,
+            fn (AnalyzeReceipt $job) => $job->receiptId === $receipt->id
+                && $job->connection === 'redis'
+                && $job->queue === 'receipts'
+        );
+    }
+
+    public function test_receipt_is_kept_as_failed_when_queue_is_unavailable(): void
+    {
+        [, $token] = $this->registerUser();
+        $dispatcher = Mockery::mock(Dispatcher::class);
+        $dispatcher->shouldReceive('dispatch')
+            ->once()
+            ->andThrow(new RuntimeException('Simulated Redis outage.'));
+        $this->app->instance(Dispatcher::class, $dispatcher);
+
+        $response = $this->uploadReceipt($token);
+
+        $response
+            ->assertCreated()
+            ->assertJsonPath('data.status', ReceiptStatus::Failed->value)
+            ->assertJsonPath('data.failure_code', 'queue_unavailable');
+
+        $receipt = Receipt::firstOrFail();
+
+        Storage::disk('local')->assertExists($receipt->image_path);
+        $this->assertDatabaseHas('receipts', [
+            'id' => $receipt->id,
+            'status' => ReceiptStatus::Failed->value,
+            'failure_code' => 'queue_unavailable',
+        ]);
+
+        $lock = Cache::store('redis')->lock(UniqueLock::getKey(new AnalyzeReceipt($receipt->id)), 10);
+        $this->assertTrue($lock->get());
+        $lock->release();
     }
 
     public function test_receipt_upload_rejects_invalid_type_size_and_pixel_count(): void
@@ -124,6 +168,40 @@ class ReceiptApiTest extends TestCase
         $this->withFreshToken($otherToken)
             ->getJson("/api/receipts/{$receiptId}")
             ->assertNotFound();
+    }
+
+    public function test_owner_can_retry_only_a_failed_receipt(): void
+    {
+        [, $ownerToken] = $this->registerUser('owner@example.com');
+        [, $otherToken] = $this->registerUser('other@example.com');
+        $receipt = Receipt::findOrFail($this->uploadReceipt($ownerToken)->json('data.id'));
+        $receipt->update([
+            'status' => ReceiptStatus::Failed,
+            'failure_code' => 'ai_unavailable',
+            'failure_message' => 'The service is unavailable.',
+            'processing_started_at' => now(),
+        ]);
+        Queue::fake();
+
+        $this->withFreshToken($otherToken)
+            ->postJson("/api/receipts/{$receipt->id}/retry")
+            ->assertNotFound();
+
+        $this->withFreshToken($ownerToken)
+            ->postJson("/api/receipts/{$receipt->id}/retry")
+            ->assertAccepted()
+            ->assertJsonPath('data.status', ReceiptStatus::Queued->value)
+            ->assertJsonPath('data.failure_code', null)
+            ->assertJsonPath('data.processing_started_at', null);
+
+        Queue::assertPushed(
+            AnalyzeReceipt::class,
+            fn (AnalyzeReceipt $job) => $job->receiptId === $receipt->id
+        );
+
+        $this->withFreshToken($ownerToken)
+            ->postJson("/api/receipts/{$receipt->id}/retry")
+            ->assertConflict();
     }
 
     public function test_receipt_cannot_be_confirmed_before_analysis_review(): void

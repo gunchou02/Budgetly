@@ -121,13 +121,16 @@ Budgetlyの実装フェーズです。
 - Upload rate limiting and storage cleanup
 - SQLite and MySQL verification
 
-## Next Phases
-
 ### Phase 14: Redis Queue
 
-- Asynchronous OCR processing
-- Retry and failure handling
-- Idempotent jobs
+- Redis-backed asynchronous receipt analysis
+- Dedicated Laravel queue worker
+- FastAPI response validation and user-owned category enforcement
+- Retry with backoff and terminal failure status
+- User-scoped failed-job retry API
+- Idempotent analysis persistence and duplicate delivery protection
+
+## Next Phases
 
 ### Phase 15: OCR and AI Analysis
 
@@ -175,6 +178,8 @@ Implemented:
 - Receipt and spending report AI contracts
 - Receipt upload, review, confirmation, and deletion APIs
 - Private local receipt storage
+- Redis receipt queue and Laravel worker
+- Durable receipt analysis status and retry API
 
 Not implemented yet:
 
@@ -183,7 +188,6 @@ Not implemented yet:
 - Category update/delete
 - Automatic receipt OCR processing
 - Real AI spending reports
-- Redis queue
 - AWS deployment
 - Production CI/CD
 - iOS app

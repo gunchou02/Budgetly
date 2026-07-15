@@ -51,6 +51,8 @@ Budgetlyは、20〜30代向けの月間生活費・支出・サブスク管理�
 - Docker Compose
 - Nginx
 - MySQL 8.4
+- Redis 7.4
+- Laravel queue worker
 
 ## Directory Structure
 
@@ -90,6 +92,7 @@ Check container status and initialization logs:
 ```bash
 docker compose ps
 docker compose logs -f backend
+docker compose logs -f worker
 ```
 
 Run Laravel commands inside the backend container:
@@ -110,6 +113,12 @@ cp .env.example .env
 php artisan key:generate
 php artisan migrate --seed
 php artisan serve --host=127.0.0.1 --port=8081
+```
+
+レシート分析も実行する場合はRedisを起動し、別ターミナルでworkerを実行します。
+
+```bash
+php artisan queue:work redis --queue=receipts --timeout=30
 ```
 
 ### Frontend
@@ -223,6 +232,7 @@ Example:
 - 認証が必要なAPIは`auth:sanctum`で保護します。
 - ユーザー別データは`user_id`条件で分離します。
 - レシート原本は公開ディレクトリではなく非公開ストレージへ保存します。
+- レシート分析はRedis queueで非同期実行し、MySQLの状態を正本として再試行できます。
 - AIが提案した支出はユーザー確認後にだけ支出として確定します。
 - FastAPIは内部サービスとして扱い、ブラウザから業務データを直接送信しません。
 - AIの説明文はLaravelが計算した集計値を入力として生成し、金額計算の正本はLaravelに保ちます。

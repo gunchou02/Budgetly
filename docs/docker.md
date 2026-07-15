@@ -3,9 +3,9 @@
 ## Prerequisites
 
 - Docker Desktop with Docker Compose v2
-- Available host ports: `5173`, `8000`, `8080`, and `3306`
+- Available host ports: `5173`, `6379`, `8000`, `8080`, and `3306`
 
-PHP, Composer, Node.js, npm, Python, Nginx, and MySQL do not need to be installed on the host when using this workflow.
+PHP, Composer, Node.js, npm, Python, Nginx, MySQL, and Redis do not need to be installed on the host when using this workflow.
 
 ## First Start
 
@@ -28,6 +28,8 @@ The frontend container installs the exact packages from `package-lock.json` in t
 
 The AI service container installs pinned Python dependencies and starts FastAPI with reload enabled. Its analysis endpoints require the shared `X-Internal-Token`; the host port is intended only for local diagnostics.
 
+Redis uses append-only persistence in the `redis-data` volume. The `worker` container consumes the `receipts` queue and updates durable receipt status in MySQL. Redis and the worker are not dependencies of ordinary budget, expense, subscription, dashboard, or report requests.
+
 Default endpoints:
 
 ```txt
@@ -35,6 +37,7 @@ Frontend: http://127.0.0.1:5173
 API:      http://127.0.0.1:8080/api
 Health:   http://127.0.0.1:8080/api/health
 AI:       http://127.0.0.1:8000/health
+Redis:    127.0.0.1:6379
 ```
 
 ## Common Commands
@@ -45,6 +48,11 @@ docker compose logs -f
 
 # Follow one service
 docker compose logs -f backend
+docker compose logs -f worker
+
+# Check the receipt queue and failed jobs
+docker compose exec backend php artisan queue:monitor redis:receipts --max=100
+docker compose exec backend php artisan queue:failed
 
 # Run backend tests
 docker compose exec backend composer test
@@ -72,6 +80,7 @@ API_PORT=8080
 FRONTEND_PORT=5173
 MYSQL_PORT=3306
 AI_PORT=8000
+REDIS_PORT=6379
 AI_INTERNAL_API_TOKEN=local-ai-secret
 DB_DATABASE=budgetly
 DB_USERNAME=budgetly
@@ -79,7 +88,7 @@ DB_PASSWORD=secret
 DB_ROOT_PASSWORD=root
 ```
 
-レシート画像はLaravelコンテナの`storage/app/private`へ保存されます。アップロード上限や保存diskは`backend/.env`の`RECEIPT_*`設定で変更できます。ローカル用原本はGit管理されません。
+レシート画像はLaravelコンテナの`storage/app/private`へ保存されます。アップロード上限や保存diskは`backend/.env`の`RECEIPT_*`設定で変更できます。ローカル用原本はGit管理されません。queue名、再試行間隔、Redis databaseは`QUEUE_*`と`REDIS_*`設定で変更できます。
 
 These credentials are development defaults. Do not reuse them in staging or production.
 
@@ -110,6 +119,12 @@ Composer installation and database migrations may still be running. Check the ba
 docker compose logs -f backend
 ```
 
+If only the backend container was recreated while Nginx stayed running, restart Nginx so it resolves the new container address:
+
+```bash
+docker compose restart nginx
+```
+
 ### A port is already allocated
 
 Change the conflicting value in the root `.env`, then recreate the containers:
@@ -130,3 +145,12 @@ docker compose up -d --build
 ```
 
 The volume names assume the default `COMPOSE_PROJECT_NAME=budgetly`.
+
+### A receipt remains failed
+
+Check the worker, Redis, and AI service logs. After the dependency recovers, call `POST /api/receipts/{receipt}/retry`. Only the receipt owner can retry a terminal `failed` analysis.
+
+```bash
+docker compose ps
+docker compose logs --tail=100 worker redis ai-service
+```

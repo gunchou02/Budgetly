@@ -125,6 +125,7 @@ AI output is never saved directly as a confirmed expense. User confirmation is m
 ```txt
 POST /api/receipts
 GET  /api/receipts/{receipt}
+POST /api/receipts/{receipt}/retry
 POST /api/receipts/{receipt}/confirm
 DELETE /api/receipts/{receipt}
 ```

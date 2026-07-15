@@ -243,7 +243,7 @@ Validation:
 - Maximum pixel count: 40 million by default
 - Upload rate: 10 requests per minute per user by default
 
-保存パスはレスポンスに含めません。Phase 13ではRedis workerが未実装のため、アップロード後は`queued`状態で待機します。
+保存パスはレスポンスに含めません。作成後はRedisの`receipts` queueへ登録され、workerがFastAPIを呼び出します。Redisへ登録できない場合もレシート原本とメタデータは保持され、レスポンスの状態は`failed`、`failure_code`は`queue_unavailable`になります。
 
 ### GET /receipts/{receipt}
 
@@ -254,6 +254,16 @@ Receipt states:
 ```txt
 queued -> processing -> review_required -> confirmed
                     \-> failed
+```
+
+### POST /receipts/{receipt}/retry
+
+認証必須。ログインユーザー本人の`failed`レシートを`queued`へ戻し、分析jobを再登録します。受付成功は202、Redisへ再登録できない場合は503、`failed`以外の状態は409、他ユーザーのIDは404です。
+
+```bash
+curl -X POST http://127.0.0.1:8080/api/receipts/{receipt}/retry \
+  -H 'Authorization: Bearer {token}' \
+  -H 'Accept: application/json'
 ```
 
 ### POST /receipts/{receipt}/confirm

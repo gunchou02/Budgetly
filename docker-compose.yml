@@ -33,7 +33,17 @@ services:
       DB_PASSWORD: ${DB_PASSWORD:-secret}
       AI_SERVICE_URL: http://ai-service:8000
       AI_SERVICE_TOKEN: ${AI_INTERNAL_API_TOKEN:-local-ai-secret}
+      AI_SERVICE_CONNECT_TIMEOUT: 3
       AI_SERVICE_TIMEOUT: 10
+      AI_SERVICE_MAX_EXTRACTED_TEXT_LENGTH: 16000
+      QUEUE_CONNECTION: redis
+      REDIS_CLIENT: phpredis
+      REDIS_HOST: redis
+      REDIS_PORT: 6379
+      REDIS_DB: 0
+      REDIS_CACHE_DB: 1
+      REDIS_QUEUE: receipts
+      REDIS_QUEUE_RETRY_AFTER: 60
     depends_on:
       mysql:
         condition: service_healthy
@@ -43,6 +53,48 @@ services:
       timeout: 3s
       retries: 12
       start_period: 30s
+
+  worker:
+    build:
+      context: ./docker/backend
+    working_dir: /var/www/html
+    volumes:
+      - ./backend:/var/www/html
+      - backend-vendor:/var/www/html/vendor
+      - ./docker/backend/entrypoint.sh:/usr/local/bin/budgetly-entrypoint:ro
+    entrypoint: ["/bin/sh", "/usr/local/bin/budgetly-entrypoint"]
+    command: ["php", "artisan", "queue:work", "redis", "--queue=receipts", "--sleep=1", "--timeout=30", "--memory=128", "--max-time=3600"]
+    restart: unless-stopped
+    stop_grace_period: 45s
+    environment:
+      APP_ENV: local
+      APP_DEBUG: "true"
+      BUDGETLY_SKIP_INIT: "true"
+      CACHE_STORE: redis
+      DB_CONNECTION: mysql
+      DB_HOST: mysql
+      DB_PORT: 3306
+      DB_DATABASE: ${DB_DATABASE:-budgetly}
+      DB_USERNAME: ${DB_USERNAME:-budgetly}
+      DB_PASSWORD: ${DB_PASSWORD:-secret}
+      AI_SERVICE_URL: http://ai-service:8000
+      AI_SERVICE_TOKEN: ${AI_INTERNAL_API_TOKEN:-local-ai-secret}
+      AI_SERVICE_CONNECT_TIMEOUT: 3
+      AI_SERVICE_TIMEOUT: 10
+      AI_SERVICE_MAX_EXTRACTED_TEXT_LENGTH: 16000
+      QUEUE_CONNECTION: redis
+      REDIS_CLIENT: phpredis
+      REDIS_HOST: redis
+      REDIS_PORT: 6379
+      REDIS_DB: 0
+      REDIS_CACHE_DB: 1
+      REDIS_QUEUE: receipts
+      REDIS_QUEUE_RETRY_AFTER: 60
+    depends_on:
+      backend:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
 
   frontend:
     image: node:22-alpine
@@ -95,7 +147,22 @@ services:
       retries: 12
       start_period: 20s
 
+  redis:
+    image: redis:7.4.9-alpine
+    ports:
+      - "${REDIS_PORT:-6379}:6379"
+    command: ["redis-server", "--appendonly", "yes"]
+    volumes:
+      - redis-data:/data
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 5s
+      timeout: 3s
+      retries: 12
+      start_period: 5s
+
 volumes:
   backend-vendor:
   frontend-node-modules:
   mysql-data:
+  redis-data:

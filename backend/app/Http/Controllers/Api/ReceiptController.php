@@ -2,9 +2,11 @@
 
 namespace App\Http\Controllers\Api;
 
+use App\Enums\ReceiptStatus;
 use App\Http\Requests\ConfirmReceiptRequest;
 use App\Http\Requests\ReceiptUploadRequest;
 use App\Services\ReceiptConfirmationService;
+use App\Services\ReceiptQueueService;
 use App\Services\ReceiptStorageService;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
@@ -14,15 +16,17 @@ class ReceiptController extends Controller
 {
     public function store(
         ReceiptUploadRequest $request,
-        ReceiptStorageService $storageService
+        ReceiptStorageService $storageService,
+        ReceiptQueueService $queueService
     ): JsonResponse {
         $receipt = $storageService->store(
             $request->user(),
             $request->file('image')
         );
+        $queueService->enqueue($receipt);
 
         return response()->json([
-            'data' => $receipt->load('analysis'),
+            'data' => $receipt->fresh()->load('analysis'),
         ], 201);
     }
 
@@ -53,6 +57,25 @@ class ReceiptController extends Controller
         return response()->json([
             'data' => $result['receipt'],
         ], $result['created'] ? 201 : 200);
+    }
+
+    public function retry(
+        Request $request,
+        int $receipt,
+        ReceiptQueueService $queueService
+    ): JsonResponse {
+        $receipt = $queueService->retry($request->user(), $receipt);
+
+        if ($receipt->status === ReceiptStatus::Failed) {
+            return response()->json([
+                'message' => 'Receipt analysis could not be queued. Please retry later.',
+                'data' => $receipt,
+            ], 503);
+        }
+
+        return response()->json([
+            'data' => $receipt,
+        ], 202);
     }
 
     public function destroy(

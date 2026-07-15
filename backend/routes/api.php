@@ -43,6 +43,8 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::post('/receipts', [ReceiptController::class, 'store'])
         ->middleware('throttle:receipt-uploads');
     Route::get('/receipts/{receipt}', [ReceiptController::class, 'show']);
+    Route::post('/receipts/{receipt}/retry', [ReceiptController::class, 'retry'])
+        ->middleware('throttle:receipt-uploads');
     Route::post('/receipts/{receipt}/confirm', [ReceiptController::class, 'confirm']);
     Route::delete('/receipts/{receipt}', [ReceiptController::class, 'destroy']);
 
