@@ -46,6 +46,14 @@ Not found or another user's data:
 }
 ```
 
+Receipt is not ready for confirmation:
+
+```json
+{
+  "message": "The receipt is not ready for confirmation."
+}
+```
+
 ## Health
 
 ### GET /health
@@ -213,6 +221,62 @@ Request:
 ### DELETE /expenses/{expense}
 
 認証必須。ログインユーザー本人の支出だけ削除できます。
+
+## Receipts
+
+### POST /receipts
+
+認証必須。レシート画像を非公開ストレージへ保存し、`queued`状態のレシートを作成します。リクエストは`multipart/form-data`です。
+
+```bash
+curl -X POST http://127.0.0.1:8080/api/receipts \
+  -H 'Authorization: Bearer {token}' \
+  -H 'Accept: application/json' \
+  -F 'image=@receipt.jpg'
+```
+
+Validation:
+
+- MIME type: `image/jpeg`, `image/png`, `image/webp`
+- Extension: `jpg`, `jpeg`, `png`, `webp`
+- Maximum size: 5 MB by default
+- Maximum pixel count: 40 million by default
+- Upload rate: 10 requests per minute per user by default
+
+保存パスはレスポンスに含めません。Phase 13ではRedis workerが未実装のため、アップロード後は`queued`状態で待機します。
+
+### GET /receipts/{receipt}
+
+認証必須。ログインユーザー本人のレシート状態、分析結果、確定済み支出を返します。他ユーザーのIDは404になります。
+
+Receipt states:
+
+```txt
+queued -> processing -> review_required -> confirmed
+                    \-> failed
+```
+
+### POST /receipts/{receipt}/confirm
+
+認証必須。`review_required`状態のAI提案をユーザーが確認・修正した値で支出へ変換します。
+
+Request:
+
+```json
+{
+  "category_id": 1,
+  "title": "セブン-イレブン",
+  "amount": 1280,
+  "spent_at": "2026-07-13",
+  "memo": "内容を確認済み"
+}
+```
+
+最初の確定は201、同じレシートの再確定は既存支出を200で返します。MySQLの行ロックとトランザクションを使い、支出を重複作成しません。分析前のレシートは409になります。
+
+### DELETE /receipts/{receipt}
+
+認証必須。ログインユーザー本人のレシート原本、メタデータ、分析結果を削除します。すでに確定した支出は削除しません。
 
 ## Subscriptions
 

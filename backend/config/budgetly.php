@@ -3,6 +3,15 @@
 return [
     'currency' => 'JPY',
 
+    'receipts' => [
+        'disk' => env('RECEIPT_STORAGE_DISK', 'local'),
+        'max_upload_kb' => (int) env('RECEIPT_MAX_UPLOAD_KB', 5120),
+        'max_pixels' => (int) env('RECEIPT_MAX_PIXELS', 40_000_000),
+        'upload_rate_per_minute' => (int) env('RECEIPT_UPLOAD_RATE_PER_MINUTE', 10),
+        'allowed_mime_types' => ['image/jpeg', 'image/png', 'image/webp'],
+        'allowed_extensions' => ['jpg', 'jpeg', 'png', 'webp'],
+    ],
+
     'default_categories' => [
         ['name' => '食費', 'color' => '#F97316', 'icon' => 'utensils', 'type' => 'expense'],
         ['name' => 'カフェ・スイーツ', 'color' => '#A16207', 'icon' => 'coffee', 'type' => 'expense'],

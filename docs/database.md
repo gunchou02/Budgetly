@@ -117,6 +117,76 @@ Notes:
 - `amount`はJPYのintegerです。
 - APIではログインユーザー本人のカテゴリだけ指定できます。
 
+## receipts
+
+非公開レシート画像のメタデータと処理状態を管理します。
+
+Main columns:
+
+```txt
+id
+user_id
+expense_id
+job_id
+status
+storage_disk
+image_path
+original_name
+mime_type
+file_size
+failure_code
+failure_message
+processing_started_at
+analyzed_at
+confirmed_at
+created_at
+updated_at
+```
+
+Constraints:
+
+- `job_id` is unique.
+- `expense_id` is nullable and unique.
+- `user_id` deletion cascades to receipts.
+- `expense_id` deletion sets the reference to null.
+
+Notes:
+
+- `storage_disk`と`image_path`はAPIレスポンスから非表示にします。
+- `status`は`queued`, `processing`, `review_required`, `confirmed`, `failed`です。
+- 同じレシートから作成できる支出は最大1件です。
+
+## receipt_analyses
+
+OCR・AIが提案した値を、確定済み支出とは分離して保存します。
+
+Main columns:
+
+```txt
+id
+receipt_id
+suggested_category_id
+provider
+merchant
+spent_at
+amount
+confidence
+extracted_text
+created_at
+updated_at
+```
+
+Constraints:
+
+- `receipt_id` is unique.
+- Receipt deletion cascades to its analysis.
+- Category deletion sets `suggested_category_id` to null.
+
+Notes:
+
+- `confidence`はフィールド別信頼度をJSONで保存します。
+- 分析値から支出を自動作成せず、ユーザーが確認APIを実行した場合だけ`expenses`へ保存します。
+
 ## subscriptions
 
 月額サブスクを管理します。
@@ -176,6 +246,7 @@ categories.user_id
 monthly_budgets.user_id
 expenses.user_id
 subscriptions.user_id
+receipts.user_id
 ```
 
 例えば予算更新では、URLの`budget` IDだけでは更新せず、ログインユーザーの`monthlyBudgets()`リレーションから検索します。

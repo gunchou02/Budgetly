@@ -4,6 +4,10 @@
 /backend/bootstrap/cache/*.php
 /backend/database/database.sqlite
 /backend/storage/*.key
+/backend/storage/app/*
+!/backend/storage/app/.gitkeep
+/backend/storage/framework/cache/data/
+/backend/storage/framework/testing/
 /backend/storage/logs/*.log
 /frontend/node_modules/
 /frontend/dist/

@@ -75,11 +75,20 @@ Completion criteria:
 
 ## Phase 13: Receipt Domain and Laravel Integration
 
+Status: completed
+
 - Add receipt metadata and analysis migrations to Laravel.
 - Add user-scoped receipt upload, status, confirmation, and deletion APIs.
 - Store images locally in development through Laravel storage.
 - Convert confirmed analysis into an expense transactionally.
 - Add authorization, upload validation, and failure tests.
+
+Implementation notes:
+
+- Uploaded files enter the durable `queued` state; Phase 14 will dispatch them to Redis.
+- Original client filenames are metadata only. Storage keys use server-generated UUIDs.
+- The confirmation endpoint accepts user-reviewed values and is idempotent after the first successful transaction.
+- Deleting receipt metadata does not delete an already confirmed expense.
 
 Completion criteria:
 

@@ -112,14 +112,16 @@ Budgetlyの実装フェーズです。
 - Docker and Laravel environment integration
 - Pytest and Ruff verification
 
-## Next Phases
-
 ### Phase 13: Receipt Domain and Laravel Integration
 
-- Receipt upload and status APIs
-- User-scoped authorization
-- Analysis review and confirmation
-- Expense creation transaction
+- Private receipt image upload and validation
+- Receipt and analysis database models
+- User-scoped status, confirmation, and deletion APIs
+- Transactional and idempotent expense creation
+- Upload rate limiting and storage cleanup
+- SQLite and MySQL verification
+
+## Next Phases
 
 ### Phase 14: Redis Queue
 
@@ -171,13 +173,15 @@ Implemented:
 - Target architecture and migration plan
 - FastAPI service foundation
 - Receipt and spending report AI contracts
+- Receipt upload, review, confirmation, and deletion APIs
+- Private local receipt storage
 
 Not implemented yet:
 
 - Password reset
 - Email verification
 - Category update/delete
-- Receipt OCR
+- Automatic receipt OCR processing
 - Real AI spending reports
 - Redis queue
 - AWS deployment

@@ -79,6 +79,8 @@ DB_PASSWORD=secret
 DB_ROOT_PASSWORD=root
 ```
 
+レシート画像はLaravelコンテナの`storage/app/private`へ保存されます。アップロード上限や保存diskは`backend/.env`の`RECEIPT_*`設定で変更できます。ローカル用原本はGit管理されません。
+
 These credentials are development defaults. Do not reuse them in staging or production.
 
 When `FRONTEND_PORT` or `API_PORT` is changed, also update `frontend/.env` so the browser uses the matching API URL:

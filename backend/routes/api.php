@@ -5,6 +5,7 @@ use App\Http\Controllers\Api\CategoryController;
 use App\Http\Controllers\Api\DashboardController;
 use App\Http\Controllers\Api\ExpenseController;
 use App\Http\Controllers\Api\MonthlyBudgetController;
+use App\Http\Controllers\Api\ReceiptController;
 use App\Http\Controllers\Api\ReportController;
 use App\Http\Controllers\Api\SubscriptionController;
 use Illuminate\Support\Facades\Route;
@@ -38,6 +39,12 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::get('/expenses/{expense}', [ExpenseController::class, 'show']);
     Route::put('/expenses/{expense}', [ExpenseController::class, 'update']);
     Route::delete('/expenses/{expense}', [ExpenseController::class, 'destroy']);
+
+    Route::post('/receipts', [ReceiptController::class, 'store'])
+        ->middleware('throttle:receipt-uploads');
+    Route::get('/receipts/{receipt}', [ReceiptController::class, 'show']);
+    Route::post('/receipts/{receipt}/confirm', [ReceiptController::class, 'confirm']);
+    Route::delete('/receipts/{receipt}', [ReceiptController::class, 'destroy']);
 
     Route::get('/subscriptions', [SubscriptionController::class, 'index']);
     Route::post('/subscriptions', [SubscriptionController::class, 'store']);
