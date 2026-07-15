@@ -1,0 +1,38 @@
+from datetime import date
+from typing import Literal
+from uuid import UUID
+
+from pydantic import Field, PositiveInt
+
+from app.schemas.common import ApiModel
+
+
+class CategoryCandidate(ApiModel):
+    id: PositiveInt
+    name: str = Field(min_length=1, max_length=100)
+
+
+class ReceiptAnalysisRequest(ApiModel):
+    job_id: UUID
+    image_key: str = Field(min_length=1, max_length=500)
+    mime_type: Literal["image/jpeg", "image/png", "image/webp"]
+    language: Literal["ja"] = "ja"
+    category_candidates: list[CategoryCandidate] = Field(min_length=1, max_length=100)
+
+
+class ReceiptConfidence(ApiModel):
+    merchant: float = Field(ge=0, le=1)
+    spent_at: float = Field(ge=0, le=1)
+    amount: float = Field(ge=0, le=1)
+    category: float = Field(ge=0, le=1)
+    overall: float = Field(ge=0, le=1)
+
+
+class ReceiptAnalysisResponse(ApiModel):
+    provider: str
+    merchant: str | None
+    spent_at: date | None
+    amount: PositiveInt | None
+    suggested_category_id: PositiveInt | None
+    confidence: ReceiptConfidence
+    extracted_text: str

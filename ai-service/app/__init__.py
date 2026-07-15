@@ -1,0 +1,1 @@
+"""Budgetly AI service package."""

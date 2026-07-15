@@ -3,9 +3,9 @@
 ## Prerequisites
 
 - Docker Desktop with Docker Compose v2
-- Available host ports: `5173`, `8080`, and `3306`
+- Available host ports: `5173`, `8000`, `8080`, and `3306`
 
-PHP, Composer, Node.js, npm, Nginx, and MySQL do not need to be installed on the host when using this workflow.
+PHP, Composer, Node.js, npm, Python, Nginx, and MySQL do not need to be installed on the host when using this workflow.
 
 ## First Start
 
@@ -26,12 +26,15 @@ The backend container performs the following idempotent initialization before PH
 
 The frontend container installs the exact packages from `package-lock.json` in the `frontend-node-modules` volume before starting the Next.js development server.
 
+The AI service container installs pinned Python dependencies and starts FastAPI with reload enabled. Its analysis endpoints require the shared `X-Internal-Token`; the host port is intended only for local diagnostics.
+
 Default endpoints:
 
 ```txt
 Frontend: http://127.0.0.1:5173
 API:      http://127.0.0.1:8080/api
 Health:   http://127.0.0.1:8080/api/health
+AI:       http://127.0.0.1:8000/health
 ```
 
 ## Common Commands
@@ -49,6 +52,10 @@ docker compose exec backend composer test
 # Run the frontend production build
 docker compose exec frontend npm run build
 
+# Run AI service lint and tests
+docker compose exec ai-service ruff check .
+docker compose exec ai-service pytest
+
 # Stop containers while preserving database data
 docker compose down
 
@@ -64,6 +71,8 @@ Docker Compose reads the root `.env` file. Copy `.env.example` and change values
 API_PORT=8080
 FRONTEND_PORT=5173
 MYSQL_PORT=3306
+AI_PORT=8000
+AI_INTERNAL_API_TOKEN=local-ai-secret
 DB_DATABASE=budgetly
 DB_USERNAME=budgetly
 DB_PASSWORD=secret

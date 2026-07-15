@@ -9,7 +9,7 @@ BudgetlyのMVP機能を維持しながら、フロントエンドの型安全性
 | Frontend | Next.js, TypeScript | UI, routing, form state, API response typing |
 | Styling | Tailwind CSS | Design tokens, responsive layout, component styling |
 | Main API | Laravel | Authentication, authorization, CRUD, business rules |
-| AI API | Python, FastAPI | OCR, receipt parsing, category suggestions |
+| AI API | Python, FastAPI | OCR, receipt parsing, category suggestions, spending explanations |
 | Database | MySQL 8.4 | Users, budgets, expenses, subscriptions, receipt metadata |
 | Cache and Queue | Redis | AI job queue, job status cache, temporary data |
 | Infrastructure | Docker, AWS, GitHub Actions | Local development, deployment, CI/CD |
@@ -62,8 +62,11 @@ The browser communicates only with Laravel for application data. FastAPI is an i
 - Receives only the image reference and a generated job identifier from trusted internal services.
 - Extracts merchant name, purchase date, total amount, and receipt text.
 - Returns structured analysis with confidence values.
+- Converts Laravel-calculated monthly aggregates into Japanese summaries and recommendations.
 - Does not authenticate end users and does not write directly to MySQL.
 - Keeps OCR providers behind an adapter so the provider can be changed later.
+
+FastAPI does not recalculate balances, usage rates, or category totals. Laravel remains responsible for exact financial calculations, and FastAPI only explains the validated aggregate values it receives.
 
 ### MySQL
 

@@ -31,6 +31,9 @@ services:
       DB_DATABASE: ${DB_DATABASE:-budgetly}
       DB_USERNAME: ${DB_USERNAME:-budgetly}
       DB_PASSWORD: ${DB_PASSWORD:-secret}
+      AI_SERVICE_URL: http://ai-service:8000
+      AI_SERVICE_TOKEN: ${AI_INTERNAL_API_TOKEN:-local-ai-secret}
+      AI_SERVICE_TIMEOUT: 10
     depends_on:
       mysql:
         condition: service_healthy
@@ -50,6 +53,28 @@ services:
       - ./frontend:/app
       - frontend-node-modules:/app/node_modules
     command: sh -c "npm ci && npm run dev"
+
+  ai-service:
+    build:
+      context: ./ai-service
+      args:
+        INSTALL_DEV: "true"
+    ports:
+      - "${AI_PORT:-8000}:8000"
+    volumes:
+      - ./ai-service:/code
+    environment:
+      AI_ENVIRONMENT: local
+      AI_INTERNAL_API_TOKEN: ${AI_INTERNAL_API_TOKEN:-local-ai-secret}
+      AI_RECEIPT_PROVIDER: fake
+      AI_REPORT_PROVIDER: fake
+    command: ["uvicorn", "app.main:app", "--host", "0.0.0.0", "--port", "8000", "--reload"]
+    healthcheck:
+      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://127.0.0.1:8000/health', timeout=2)"]
+      interval: 5s
+      timeout: 3s
+      retries: 12
+      start_period: 10s
 
   mysql:
     image: mysql:8.4

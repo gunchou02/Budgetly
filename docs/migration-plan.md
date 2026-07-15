@@ -57,17 +57,21 @@ Rollback rule:
 
 ## Phase 12: FastAPI Foundation
 
+Status: completed
+
 - Add an isolated `ai-service` directory.
 - Add health, readiness, structured error, and request ID handling.
 - Define Pydantic request and response models.
 - Add an OCR provider interface and deterministic fake implementation for tests.
-- Add Docker service configuration without exposing it publicly.
+- Add a spending report interface that converts Laravel-calculated aggregates into Japanese explanations.
+- Add Docker service configuration as an internal application service with a development-only host port.
 
 Completion criteria:
 
 - FastAPI unit tests pass without external AI credentials.
 - Laravel can reach the FastAPI health endpoint on the Docker network.
 - No FastAPI code reads or writes MySQL directly.
+- Protected analysis endpoints reject calls without the shared internal token.
 
 ## Phase 13: Receipt Domain and Laravel Integration
 
@@ -105,6 +109,7 @@ Completion criteria:
 - Extract merchant, date, total, and confidence values.
 - Suggest only categories owned by the current user.
 - Add fixtures for common Japanese receipt formats.
+- Replace the fake spending report provider with a real AI provider while keeping calculations in Laravel.
 
 Completion criteria:
 

@@ -37,6 +37,14 @@ Budgetlyは、20〜30代向けの月間生活費・支出・サブスク管理�
 - Service Layer
 - PHPUnit
 
+### AI Service
+
+- Python 3.14
+- FastAPI
+- Pydantic
+- Pytest
+- Ruff
+
 ### Infrastructure
 
 - Docker Compose
@@ -49,6 +57,7 @@ Budgetlyは、20〜30代向けの月間生活費・支出・サブスク管理�
 Budgetly/
 ├── backend/              # Laravel API
 ├── frontend/             # Next.js + TypeScript app
+├── ai-service/           # Internal FastAPI analysis service
 ├── docker/               # Docker settings
 ├── docs/                 # API, DB, QA, roadmap docs
 ├── docker-compose.yml
@@ -72,6 +81,7 @@ Default URLs:
 ```txt
 Frontend: http://127.0.0.1:5173
 API:      http://127.0.0.1:8080/api
+AI API:   http://127.0.0.1:8000
 ```
 
 Check container status and initialization logs:
@@ -162,11 +172,23 @@ npm run lint
 npm run build
 ```
 
+AI service checks:
+
+```bash
+cd ai-service
+cp .env.example .env
+python3 -m venv .venv
+.venv/bin/pip install -r requirements-dev.txt
+.venv/bin/ruff check .
+.venv/bin/pytest
+```
+
 ## Documents
 
 - [API Documentation](docs/api.md)
 - [Database Documentation](docs/database.md)
 - [Docker Development](docs/docker.md)
+- [AI Service](docs/ai-service.md)
 - [Target Architecture](docs/architecture.md)
 - [Stack Migration Plan](docs/migration-plan.md)
 - [QA Checklist](docs/qa-checklist.md)
@@ -199,3 +221,5 @@ Example:
 - 認証はLaravel SanctumのPersonal Access Token方式です。
 - 認証が必要なAPIは`auth:sanctum`で保護します。
 - ユーザー別データは`user_id`条件で分離します。
+- FastAPIは内部サービスとして扱い、ブラウザから業務データを直接送信しません。
+- AIの説明文はLaravelが計算した集計値を入力として生成し、金額計算の正本はLaravelに保ちます。

@@ -10,6 +10,13 @@
 /frontend/.next/
 /frontend/out/
 /frontend/*.tsbuildinfo
+/frontend/next-env.d.ts
 /frontend/.env
+/ai-service/.env
+/ai-service/.venv/
+/ai-service/.pytest_cache/
+/ai-service/.ruff_cache/
+__pycache__/
+*.py[cod]
 /.env
 .DS_Store

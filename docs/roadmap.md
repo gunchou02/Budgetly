@@ -103,15 +103,16 @@ Budgetlyの実装フェーズです。
 - Typed Laravel API client
 - Docker and browser QA
 
-## Next Phases
-
 ### Phase 12: FastAPI Foundation
 
-- Internal AI service
-- Health and readiness endpoints
-- Pydantic contracts
-- OCR provider adapter
-- Docker integration
+- Internal AI service with service-token authentication
+- Health, readiness, structured error, and request ID handling
+- Receipt analysis and spending report Pydantic contracts
+- Deterministic fake providers for local development and tests
+- Docker and Laravel environment integration
+- Pytest and Ruff verification
+
+## Next Phases
 
 ### Phase 13: Receipt Domain and Laravel Integration
 
@@ -132,6 +133,7 @@ Budgetlyの実装フェーズです。
 - Merchant, date, and total extraction
 - Category suggestion
 - Confidence reporting
+- Japanese monthly spending summaries and recommendations
 
 ### Phase 16: Integrated Docker and QA
 
@@ -167,6 +169,8 @@ Implemented:
 - Basic UX polish
 - Documentation
 - Target architecture and migration plan
+- FastAPI service foundation
+- Receipt and spending report AI contracts
 
 Not implemented yet:
 
@@ -174,6 +178,7 @@ Not implemented yet:
 - Email verification
 - Category update/delete
 - Receipt OCR
+- Real AI spending reports
 - Redis queue
 - AWS deployment
 - Production CI/CD
