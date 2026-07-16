@@ -34,8 +34,11 @@ services:
       AI_SERVICE_URL: http://ai-service:8000
       AI_SERVICE_TOKEN: ${AI_INTERNAL_API_TOKEN:-local-ai-secret}
       AI_SERVICE_CONNECT_TIMEOUT: 3
-      AI_SERVICE_TIMEOUT: 10
+      AI_SERVICE_TIMEOUT: 25
+      AI_SERVICE_REPORT_TIMEOUT: 25
       AI_SERVICE_MAX_EXTRACTED_TEXT_LENGTH: 16000
+      AI_REPORT_RATE_PER_MINUTE: ${AI_REPORT_RATE_PER_MINUTE:-10}
+      AI_REPORT_CACHE_TTL_SECONDS: 21600
       QUEUE_CONNECTION: redis
       REDIS_CLIENT: phpredis
       REDIS_HOST: redis
@@ -80,8 +83,11 @@ services:
       AI_SERVICE_URL: http://ai-service:8000
       AI_SERVICE_TOKEN: ${AI_INTERNAL_API_TOKEN:-local-ai-secret}
       AI_SERVICE_CONNECT_TIMEOUT: 3
-      AI_SERVICE_TIMEOUT: 10
+      AI_SERVICE_TIMEOUT: 25
+      AI_SERVICE_REPORT_TIMEOUT: 25
       AI_SERVICE_MAX_EXTRACTED_TEXT_LENGTH: 16000
+      AI_REPORT_RATE_PER_MINUTE: ${AI_REPORT_RATE_PER_MINUTE:-10}
+      AI_REPORT_CACHE_TTL_SECONDS: 21600
       QUEUE_CONNECTION: redis
       REDIS_CLIENT: phpredis
       REDIS_HOST: redis
@@ -118,8 +124,16 @@ services:
     environment:
       AI_ENVIRONMENT: local
       AI_INTERNAL_API_TOKEN: ${AI_INTERNAL_API_TOKEN:-local-ai-secret}
-      AI_RECEIPT_PROVIDER: fake
-      AI_REPORT_PROVIDER: fake
+      AI_RECEIPT_PROVIDER: ${AI_RECEIPT_PROVIDER:-fake}
+      AI_REPORT_PROVIDER: ${AI_REPORT_PROVIDER:-fake}
+      AI_RECEIPT_MAX_BYTES: 5242880
+      AI_RECEIPT_MAX_PIXELS: 40000000
+      AI_RECEIPT_MAX_DIMENSION: 2048
+      AI_RECEIPT_JPEG_QUALITY: 90
+      AI_OPENAI_API_KEY: ${OPENAI_API_KEY:-}
+      AI_OPENAI_MODEL: ${AI_OPENAI_MODEL:-gpt-4o-mini}
+      AI_OPENAI_TIMEOUT_SECONDS: 20
+      AI_OPENAI_MAX_RETRIES: 0
     command: ["uvicorn", "app.main:app", "--host", "0.0.0.0", "--port", "8000", "--reload"]
     healthcheck:
       test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://127.0.0.1:8000/health', timeout=2)"]

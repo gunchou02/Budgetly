@@ -130,15 +130,16 @@ Budgetlyの実装フェーズです。
 - User-scoped failed-job retry API
 - Idempotent analysis persistence and duplicate delivery protection
 
-## Next Phases
-
 ### Phase 15: OCR and AI Analysis
 
-- Japanese receipt OCR
-- Merchant, date, and total extraction
-- Category suggestion
-- Confidence reporting
+- Receipt image validation, orientation correction, resize, and normalization
+- OpenAI vision provider for Japanese merchant, date, and total extraction
+- User-owned category suggestion and confidence reporting
 - Japanese monthly spending summaries and recommendations
+- Laravel multipart streaming and report result caching
+- Private receipt quality evaluation workflow
+
+## Next Phases
 
 ### Phase 16: Integrated Docker and QA
 
@@ -180,14 +181,16 @@ Implemented:
 - Private local receipt storage
 - Redis receipt queue and Laravel worker
 - Durable receipt analysis status and retry API
+- OpenAI receipt and spending report providers
+- Receipt image preprocessing and private multipart transfer
+- AI spending insight API and report UI
 
 Not implemented yet:
 
 - Password reset
 - Email verification
 - Category update/delete
-- Automatic receipt OCR processing
-- Real AI spending reports
+- Live OpenAI quality baseline with sanitized real receipts
 - AWS deployment
 - Production CI/CD
 - iOS app

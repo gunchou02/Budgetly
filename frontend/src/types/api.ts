@@ -108,6 +108,23 @@ export interface MonthlyReport {
   months: MonthlyReportItem[];
 }
 
+export type SpendingInsightSeverity = 'info' | 'warning' | 'positive';
+
+export interface SpendingInsightHighlight {
+  type: 'top_category' | 'budget' | 'month_over_month' | 'subscription';
+  title: string;
+  description: string;
+  severity: SpendingInsightSeverity;
+}
+
+export interface SpendingInsight {
+  provider: string;
+  period: string;
+  summary: string;
+  highlights: SpendingInsightHighlight[];
+  recommendations: string[];
+}
+
 export interface AuthResponse {
   token: string;
   user: User;

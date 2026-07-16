@@ -22,13 +22,6 @@ class ReceiptAiClient
             );
         }
 
-        if (! Storage::disk($receipt->storage_disk)->exists($receipt->image_path)) {
-            throw new ReceiptAnalysisException(
-                'receipt_image_missing',
-                'The receipt image is no longer available.'
-            );
-        }
-
         $categories = $receipt->user
             ->categories()
             ->where('type', 'expense')
@@ -44,27 +37,52 @@ class ReceiptAiClient
             );
         }
 
-        $response = Http::acceptJson()
-            ->withHeaders([
-                'X-Internal-Token' => $token,
-                'X-Request-ID' => $receipt->job_id,
-            ])
-            ->connectTimeout(max(1, (int) config('ai.connect_timeout')))
-            ->timeout(max(1, (int) config('ai.timeout')))
-            ->post("{$url}/v1/receipts/analyze", [
-                'job_id' => $receipt->job_id,
-                'image_key' => $receipt->image_path,
-                'mime_type' => $receipt->mime_type,
-                'language' => 'ja',
-                'category_candidates' => $categories
-                    ->map(fn ($category) => [
-                        'id' => $category->id,
-                        'name' => $category->name,
-                    ])
-                    ->values()
-                    ->all(),
-            ])
-            ->throw();
+        $payload = json_encode([
+            'job_id' => $receipt->job_id,
+            'image_key' => $receipt->image_path,
+            'mime_type' => $receipt->mime_type,
+            'language' => 'ja',
+            'category_candidates' => $categories
+                ->map(fn ($category) => [
+                    'id' => $category->id,
+                    'name' => $category->name,
+                ])
+                ->values()
+                ->all(),
+        ], JSON_THROW_ON_ERROR | JSON_UNESCAPED_UNICODE);
+
+        $imageStream = Storage::disk($receipt->storage_disk)->readStream($receipt->image_path);
+
+        if ($imageStream === false) {
+            throw new ReceiptAnalysisException(
+                'receipt_image_missing',
+                'The receipt image is no longer available.'
+            );
+        }
+
+        try {
+            $response = Http::acceptJson()
+                ->withHeaders([
+                    'X-Internal-Token' => $token,
+                    'X-Request-ID' => $receipt->job_id,
+                ])
+                ->connectTimeout(max(1, (int) config('ai.connect_timeout')))
+                ->timeout(max(1, (int) config('ai.timeout')))
+                ->attach(
+                    'image',
+                    $imageStream,
+                    $receipt->original_name,
+                    ['Content-Type' => $receipt->mime_type]
+                )
+                ->post("{$url}/v1/receipts/analyze", [
+                    'payload' => $payload,
+                ])
+                ->throw();
+        } finally {
+            if (is_resource($imageStream)) {
+                fclose($imageStream);
+            }
+        }
 
         $data = $response->json();
 

@@ -1,0 +1,47 @@
+[
+  {
+    "name": "convenience-store",
+    "image": "images/convenience-store.jpg",
+    "mime_type": "image/jpeg",
+    "category_candidates": [
+      {"id": 1, "name": "食費"},
+      {"id": 2, "name": "日用品"}
+    ],
+    "expected": {
+      "merchant": "コンビニ名",
+      "spent_at": "2026-07-01",
+      "amount": 1280,
+      "suggested_category_id": 1
+    }
+  },
+  {
+    "name": "supermarket",
+    "image": "images/supermarket.jpg",
+    "mime_type": "image/jpeg",
+    "category_candidates": [
+      {"id": 1, "name": "食費"},
+      {"id": 2, "name": "日用品"}
+    ],
+    "expected": {
+      "merchant": "スーパー名",
+      "spent_at": "2026-07-02",
+      "amount": 4560,
+      "suggested_category_id": 1
+    }
+  },
+  {
+    "name": "restaurant",
+    "image": "images/restaurant.png",
+    "mime_type": "image/png",
+    "category_candidates": [
+      {"id": 1, "name": "食費"},
+      {"id": 3, "name": "交際費"}
+    ],
+    "expected": {
+      "merchant": "レストラン名",
+      "spent_at": "2026-07-03",
+      "amount": 3200,
+      "suggested_category_id": 1
+    }
+  }
+]

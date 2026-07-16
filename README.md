@@ -10,10 +10,10 @@ Budgetlyは、20〜30代向けの月間生活費・支出・サブスク管理�
 - ユーザー別の初期カテゴリ作成
 - 月間生活費予算の登録・編集
 - 支出の登録・編集・削除
-- レシート画像のアップロード・分析結果確認・支出確定API
+- レシート画像のアップロード・AI分析・確認後の支出確定API
 - サブスクの登録・編集・解約・削除
 - ダッシュボードでの月次集計
-- カテゴリ別・月別レポート
+- カテゴリ別・月別レポートとAI支出インサイト
 - Next.jsフロントエンドからのAPI連携
 
 ## Tech Stack
@@ -43,6 +43,8 @@ Budgetlyは、20〜30代向けの月間生活費・支出・サブスク管理�
 - Python 3.14
 - FastAPI
 - Pydantic
+- OpenAI Responses API
+- Pillow
 - Pytest
 - Ruff
 
@@ -192,6 +194,8 @@ python3 -m venv .venv
 .venv/bin/ruff check .
 .venv/bin/pytest
 ```
+
+実OpenAI providerは任意です。既定の`fake` providerではkeyも外部通信も不要です。実providerの設定とレシート品質評価手順は[AI Service](docs/ai-service.md)を参照してください。
 
 ## Documents
 

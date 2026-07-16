@@ -7,11 +7,27 @@ use App\Models\MonthlyBudget;
 use App\Models\Subscription;
 use App\Models\User;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Illuminate\Http\Client\Request;
+use Illuminate\Support\Facades\Http;
 use Tests\TestCase;
 
 class ReportApiTest extends TestCase
 {
     use RefreshDatabase;
+
+    protected function setUp(): void
+    {
+        parent::setUp();
+
+        config([
+            'ai.url' => 'http://ai-service:8000',
+            'ai.token' => 'test-internal-token',
+            'ai.connect_timeout' => 1,
+            'ai.report_timeout' => 2,
+            'ai.report_cache_ttl_seconds' => 3600,
+            'cache.default' => 'array',
+        ]);
+    }
 
     public function test_user_can_get_category_report_for_month(): void
     {
@@ -146,6 +162,145 @@ class ReportApiTest extends TestCase
             ->getJson('/api/reports/monthly')
             ->assertUnprocessable()
             ->assertJsonValidationErrors(['year']);
+
+        $this->withToken($token)
+            ->getJson('/api/reports/insights')
+            ->assertUnprocessable()
+            ->assertJsonValidationErrors(['year', 'month']);
+    }
+
+    public function test_user_can_get_cached_ai_spending_insights_from_laravel_totals(): void
+    {
+        [$user, $token] = $this->registerUser();
+        $food = $user->categories()->where('name', '食費')->firstOrFail();
+
+        MonthlyBudget::create([
+            'user_id' => $user->id,
+            'year' => 2026,
+            'month' => 7,
+            'amount' => 10000,
+        ]);
+        Expense::create([
+            'user_id' => $user->id,
+            'category_id' => $food->id,
+            'title' => '先月の食費',
+            'amount' => 1000,
+            'spent_at' => '2026-06-10',
+        ]);
+        Expense::create([
+            'user_id' => $user->id,
+            'category_id' => $food->id,
+            'title' => '今月の食費',
+            'amount' => 3000,
+            'spent_at' => '2026-07-10',
+        ]);
+        Http::fake([
+            'http://ai-service:8000/v1/reports/analyze' => Http::response([
+                'provider' => 'fake',
+                'period' => '2026-07',
+                'summary' => '7月は食費に最も多く使いました。',
+                'highlights' => [[
+                    'type' => 'top_category',
+                    'title' => '食費が最多',
+                    'description' => '食費は3,000円です。',
+                    'severity' => 'info',
+                ]],
+                'recommendations' => ['食費の明細を確認しましょう。'],
+            ]),
+        ]);
+
+        $this->withToken($token)
+            ->getJson('/api/reports/insights?year=2026&month=7')
+            ->assertOk()
+            ->assertJsonPath('data.provider', 'fake')
+            ->assertJsonPath('data.period', '2026-07')
+            ->assertJsonPath('data.highlights.0.type', 'top_category');
+
+        $this->withToken($token)
+            ->getJson('/api/reports/insights?year=2026&month=7')
+            ->assertOk();
+
+        Http::assertSent(function (Request $request): bool {
+            $data = $request->data();
+
+            return $request->url() === 'http://ai-service:8000/v1/reports/analyze'
+                && $request->hasHeader('X-Internal-Token', 'test-internal-token')
+                && $data['period'] === '2026-07'
+                && $data['budget_amount'] === 10000
+                && $data['total_spent'] === 3000
+                && $data['previous_month_total'] === 1000
+                && $data['month_over_month_rate'] === 200.0
+                && $data['categories'][0]['name'] === '食費'
+                && $data['categories'][0]['month_over_month_rate'] === 200.0;
+        });
+        Http::assertSentCount(1);
+    }
+
+    public function test_ai_report_failure_does_not_break_regular_reports(): void
+    {
+        [, $token] = $this->registerUser();
+        Http::fake([
+            'http://ai-service:8000/v1/reports/analyze' => Http::response([], 503),
+        ]);
+
+        $this->withToken($token)
+            ->getJson('/api/reports/insights?year=2026&month=7')
+            ->assertServiceUnavailable()
+            ->assertJsonPath('error.code', 'ai_unavailable');
+
+        $this->withToken($token)
+            ->getJson('/api/reports/categories?year=2026&month=7')
+            ->assertOk()
+            ->assertJsonPath('data.expense_total', 0);
+    }
+
+    public function test_ai_report_accepts_empty_recommendations_for_month_without_spending(): void
+    {
+        [, $token] = $this->registerUser();
+        Http::fake([
+            'http://ai-service:8000/v1/reports/analyze' => Http::response([
+                'provider' => 'fake',
+                'period' => '2026-07',
+                'summary' => '2026年07月はまだ支出データがありません。',
+                'highlights' => [[
+                    'type' => 'budget',
+                    'title' => '予算の範囲内です',
+                    'description' => '予算消化率は0.0%です。',
+                    'severity' => 'positive',
+                ]],
+                'recommendations' => [],
+            ]),
+        ]);
+
+        $this->withToken($token)
+            ->getJson('/api/reports/insights?year=2026&month=7')
+            ->assertOk()
+            ->assertJsonPath('data.recommendations', []);
+    }
+
+    public function test_ai_report_is_rate_limited_per_user(): void
+    {
+        [, $token] = $this->registerUser();
+        config(['ai.report_rate_per_minute' => 1]);
+        Http::fake([
+            'http://ai-service:8000/v1/reports/analyze' => Http::response([
+                'provider' => 'fake',
+                'period' => '2026-07',
+                'summary' => '2026年07月はまだ支出データがありません。',
+                'highlights' => [],
+                'recommendations' => [],
+            ]),
+        ]);
+
+        $this->withToken($token)
+            ->getJson('/api/reports/insights?year=2026&month=7')
+            ->assertOk();
+
+        $this->withToken($token)
+            ->getJson('/api/reports/insights?year=2026&month=7')
+            ->assertTooManyRequests();
+
+        Http::assertSentCount(1);
     }
 
     private function registerUser(string $email = 'taro@example.com'): array

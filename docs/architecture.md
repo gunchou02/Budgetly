@@ -88,10 +88,11 @@ FastAPI does not recalculate balances, usage rates, or category totals. Laravel 
 3. Laravel stores the image and creates a receipt record with `queued` status.
 4. Laravel sends an OCR job to Redis.
 5. A Laravel queue worker consumes the job and calls FastAPI over the private Docker network.
-6. FastAPI processes the image and returns structured fields with confidence scores.
-7. The Laravel worker stores the analysis and changes the status to `review_required`.
-8. The user reviews and edits the suggested values.
-9. Laravel creates the expense and changes the receipt status to `confirmed`.
+6. The worker streams the private image as multipart data; FastAPI validates and normalizes it.
+7. FastAPI sends only the normalized image to the configured provider and validates structured output.
+8. The Laravel worker stores the analysis and changes the status to `review_required`.
+9. The user reviews and edits the suggested values.
+10. Laravel creates the expense and changes the receipt status to `confirmed`.
 ```
 
 Planned receipt states:
@@ -120,7 +121,7 @@ Suggested analysis contract:
 
 AI output is never saved directly as a confirmed expense. User confirmation is mandatory.
 
-## Planned Laravel API Surface
+## Laravel API Surface
 
 ```txt
 POST /api/receipts
@@ -130,7 +131,7 @@ POST /api/receipts/{receipt}/confirm
 DELETE /api/receipts/{receipt}
 ```
 
-All endpoints use `auth:sanctum` and user-scoped queries. Exact request and response formats will be fixed when the receipt domain is implemented.
+All endpoints use `auth:sanctum` and user-scoped queries.
 
 ## Image Storage
 

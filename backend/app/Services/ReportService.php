@@ -4,13 +4,14 @@ namespace App\Services;
 
 use App\Models\User;
 use Carbon\CarbonImmutable;
+use Illuminate\Support\Facades\Cache;
 
 class ReportService
 {
     public function __construct(
-        private readonly MonthlyBudgetReportService $monthlyBudgetReportService
-    ) {
-    }
+        private readonly MonthlyBudgetReportService $monthlyBudgetReportService,
+        private readonly SpendingReportAiClient $spendingReportAiClient
+    ) {}
 
     public function categoryReport(User $user, int $year, int $month): array
     {
@@ -85,5 +86,76 @@ class ReportService
             ],
             'months' => $months->values()->all(),
         ];
+    }
+
+    public function spendingInsights(User $user, int $year, int $month): array
+    {
+        $period = CarbonImmutable::create($year, $month, 1, 0, 0, 0, config('app.timezone'));
+        $previousPeriod = $period->subMonth();
+        $currentReport = $this->monthlyBudgetReportService->build($user, $year, $month);
+        $previousReport = $this->monthlyBudgetReportService->build(
+            $user,
+            $previousPeriod->year,
+            $previousPeriod->month
+        );
+        $currentCategories = $this->categoryReport($user, $year, $month)['categories'];
+        $previousCategories = collect($this->categoryReport(
+            $user,
+            $previousPeriod->year,
+            $previousPeriod->month
+        )['categories'])->keyBy('category_id');
+
+        $payload = [
+            'period' => $period->format('Y-m'),
+            'currency' => 'JPY',
+            'budget_amount' => $currentReport['budget'],
+            'total_spent' => $currentReport['total_spent'],
+            'remaining_amount' => $currentReport['remaining'],
+            'usage_rate' => $currentReport['usage_rate'],
+            'previous_month_total' => $previousReport['total_spent'],
+            'month_over_month_rate' => $this->changeRate(
+                $currentReport['total_spent'],
+                $previousReport['total_spent']
+            ),
+            'subscription_total' => $currentReport['subscription_total'],
+            'subscription_rate' => $currentReport['total_spent'] > 0
+                ? round($currentReport['subscription_total'] / $currentReport['total_spent'] * 100, 1)
+                : 0.0,
+            'categories' => collect($currentCategories)
+                ->take(100)
+                ->map(function (array $category) use ($previousCategories): array {
+                    $previousAmount = (int) ($previousCategories->get($category['category_id'])['amount'] ?? 0);
+
+                    return [
+                        'name' => $category['name'],
+                        'amount' => $category['amount'],
+                        'percentage' => $category['percentage'],
+                        'month_over_month_rate' => $this->changeRate(
+                            $category['amount'],
+                            $previousAmount
+                        ),
+                    ];
+                })
+                ->values()
+                ->all(),
+        ];
+
+        $fingerprint = hash('sha256', json_encode($payload, JSON_THROW_ON_ERROR));
+        $cacheKey = "ai-report:v1:{$user->id}:{$fingerprint}";
+
+        return Cache::remember(
+            $cacheKey,
+            max(60, (int) config('ai.report_cache_ttl_seconds')),
+            fn (): array => $this->spendingReportAiClient->analyze($payload)
+        );
+    }
+
+    private function changeRate(int $currentAmount, int $previousAmount): ?float
+    {
+        if ($previousAmount <= 0) {
+            return null;
+        }
+
+        return round(($currentAmount - $previousAmount) / $previousAmount * 100, 1);
     }
 }

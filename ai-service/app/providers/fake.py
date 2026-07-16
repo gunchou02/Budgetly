@@ -10,10 +10,15 @@ from app.schemas.report import (
     SpendingReportRequest,
     SpendingReportResponse,
 )
+from app.services.images import ProcessedReceiptImage
 
 
 class FakeReceiptAnalyzer:
-    async def analyze(self, request: ReceiptAnalysisRequest) -> ReceiptAnalysisResponse:
+    async def analyze(
+        self,
+        request: ReceiptAnalysisRequest,
+        image: ProcessedReceiptImage,
+    ) -> ReceiptAnalysisResponse:
         category = next(
             (
                 candidate

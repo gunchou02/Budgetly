@@ -28,11 +28,14 @@ class ReceiptConfidence(ApiModel):
     overall: float = Field(ge=0, le=1)
 
 
-class ReceiptAnalysisResponse(ApiModel):
-    provider: str
-    merchant: str | None
+class ReceiptExtraction(ApiModel):
+    merchant: str | None = Field(max_length=255)
     spent_at: date | None
     amount: PositiveInt | None
     suggested_category_id: PositiveInt | None
     confidence: ReceiptConfidence
-    extracted_text: str
+    extracted_text: str = Field(max_length=16000)
+
+
+class ReceiptAnalysisResponse(ReceiptExtraction):
+    provider: str = Field(min_length=1, max_length=100)

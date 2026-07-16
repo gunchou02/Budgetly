@@ -382,3 +382,13 @@ Query:
 ```txt
 year=2026
 ```
+
+### GET /reports/insights
+
+認証必須。Laravelが指定月の予算、支出、前月比、カテゴリ比率、サブスク比率を計算し、FastAPIが日本語の要約、注目点、見直し案を返します。
+
+```txt
+year=2026&month=7
+```
+
+金額計算の正本はLaravelです。結果はユーザーIDと集計値のfingerprintで6時間キャッシュされ、支出データが変わると別の結果を生成します。外部APIの過剰利用を防ぐため、既定ではユーザーごとに1分10回までです。AI serviceが利用できない場合は503を返しますが、`/reports/categories`と`/reports/monthly`には影響しません。

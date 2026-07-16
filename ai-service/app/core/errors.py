@@ -9,6 +9,30 @@ from fastapi.responses import JSONResponse
 logger = logging.getLogger(__name__)
 
 
+class ServiceError(RuntimeError):
+    status_code = 500
+    code = "service_error"
+    public_message = "The request could not be completed."
+
+
+class InvalidReceiptImageError(ServiceError):
+    status_code = 422
+    code = "invalid_receipt_image"
+    public_message = "The receipt image is invalid or unsupported."
+
+
+class ProviderUnavailableError(ServiceError):
+    status_code = 503
+    code = "provider_unavailable"
+    public_message = "The analysis provider is temporarily unavailable."
+
+
+class ProviderResponseError(ServiceError):
+    status_code = 502
+    code = "invalid_provider_response"
+    public_message = "The analysis provider returned an invalid response."
+
+
 def _request_id(request: Request) -> str:
     return getattr(request.state, "request_id", "unknown")
 
@@ -27,6 +51,20 @@ def _error_body(
 
 
 def register_exception_handlers(app: FastAPI) -> None:
+    @app.exception_handler(ServiceError)
+    async def service_exception_handler(
+        request: Request,
+        exception: ServiceError,
+    ) -> JSONResponse:
+        return JSONResponse(
+            status_code=exception.status_code,
+            content=_error_body(
+                request,
+                exception.code,
+                exception.public_message,
+            ),
+        )
+
     @app.exception_handler(RequestValidationError)
     async def validation_exception_handler(
         request: Request,

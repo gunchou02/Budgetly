@@ -1,10 +1,23 @@
 'use client';
 
 import { useEffect, useState, type ChangeEvent } from 'react';
+import { CircleAlert, CircleCheck, Info, Sparkles, type LucideIcon } from 'lucide-react';
 import { Bar, BarChart, CartesianGrid, ResponsiveContainer, Tooltip, XAxis, YAxis } from 'recharts';
 import { apiClient, getApiErrorMessage } from '../api/client';
 import { formatYen, getCurrentYearMonth } from '../utils/formatters';
-import type { ApiEnvelope, CategoryReport, MonthlyReport } from '@/types/api';
+import type {
+  ApiEnvelope,
+  CategoryReport,
+  MonthlyReport,
+  SpendingInsight,
+  SpendingInsightSeverity,
+} from '@/types/api';
+
+const insightIcons: Record<SpendingInsightSeverity, LucideIcon> = {
+  info: Info,
+  warning: CircleAlert,
+  positive: CircleCheck,
+};
 
 function ReportsPage() {
   const current = getCurrentYearMonth();
@@ -14,6 +27,9 @@ function ReportsPage() {
   });
   const [categoryReport, setCategoryReport] = useState<CategoryReport | null>(null);
   const [monthlyReport, setMonthlyReport] = useState<MonthlyReport | null>(null);
+  const [spendingInsight, setSpendingInsight] = useState<SpendingInsight | null>(null);
+  const [isInsightLoading, setIsInsightLoading] = useState(true);
+  const [insightError, setInsightError] = useState('');
   const [error, setError] = useState('');
 
   useEffect(() => {
@@ -48,7 +64,35 @@ function ReportsPage() {
       }
     }
 
+    async function fetchSpendingInsight() {
+      setSpendingInsight(null);
+      setInsightError('');
+      setIsInsightLoading(true);
+
+      try {
+        const response = await apiClient.get<ApiEnvelope<SpendingInsight>>('/reports/insights', {
+          params: {
+            year: filters.year,
+            month: filters.month,
+          },
+        });
+
+        if (isActive) {
+          setSpendingInsight(response.data.data);
+        }
+      } catch {
+        if (isActive) {
+          setInsightError('AIレポートを取得できませんでした。集計データは引き続き利用できます。');
+        }
+      } finally {
+        if (isActive) {
+          setIsInsightLoading(false);
+        }
+      }
+    }
+
     fetchReports();
+    fetchSpendingInsight();
 
     return () => {
       isActive = false;
@@ -101,6 +145,45 @@ function ReportsPage() {
           <strong>{monthlyReport?.summary.subscription_rate ?? 0}%</strong>
         </article>
       </div>
+
+      <section className="panel ai-report-panel">
+        <div className="panel-header ai-report-header">
+          <Sparkles aria-hidden="true" size={20} />
+          <h2>AI支出レポート</h2>
+        </div>
+        {isInsightLoading && <p className="muted-text">分析中...</p>}
+        {insightError && <p className="form-error">{insightError}</p>}
+        {spendingInsight && (
+          <div className="ai-report-content">
+            <p className="ai-report-summary">{spendingInsight.summary}</p>
+            {spendingInsight.highlights.length > 0 && (
+              <div className="ai-highlight-list">
+                {spendingInsight.highlights.map((highlight, index) => {
+                  const HighlightIcon = insightIcons[highlight.severity];
+
+                  return (
+                    <div className={`ai-highlight-row ${highlight.severity}`} key={`${highlight.type}-${index}`}>
+                      <HighlightIcon aria-hidden="true" size={19} />
+                      <strong>{highlight.title}</strong>
+                      <span>{highlight.description}</span>
+                    </div>
+                  );
+                })}
+              </div>
+            )}
+            {spendingInsight.recommendations.length > 0 && (
+              <div className="ai-recommendations">
+                <strong>今月の見直しポイント</strong>
+                <ul>
+                  {spendingInsight.recommendations.map((recommendation, index) => (
+                    <li key={`${recommendation}-${index}`}>{recommendation}</li>
+                  ))}
+                </ul>
+              </div>
+            )}
+          </div>
+        )}
+      </section>
 
       <section className="panel">
         <div className="panel-header">

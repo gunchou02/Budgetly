@@ -277,6 +277,77 @@ a {
   font-size: 18px;
 }
 
+.ai-report-panel {
+  border-left: 4px solid #0f766e;
+}
+
+.ai-report-header {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  color: #115e59;
+}
+
+.ai-report-content {
+  display: grid;
+  gap: 18px;
+}
+
+.ai-report-summary {
+  margin: 0;
+  color: #1f2937;
+  font-size: 16px;
+  line-height: 1.75;
+}
+
+.ai-highlight-list {
+  display: grid;
+}
+
+.ai-highlight-row {
+  display: grid;
+  grid-template-columns: 24px minmax(140px, 0.35fr) minmax(0, 1fr);
+  align-items: start;
+  gap: 12px;
+  padding: 13px 0;
+  border-top: 1px solid #e5e7eb;
+  color: #4b5563;
+  line-height: 1.6;
+}
+
+.ai-highlight-row strong {
+  color: #111827;
+}
+
+.ai-highlight-row.info > svg {
+  color: #2563eb;
+}
+
+.ai-highlight-row.warning > svg {
+  color: #b45309;
+}
+
+.ai-highlight-row.positive > svg {
+  color: #15803d;
+}
+
+.ai-recommendations {
+  padding-top: 2px;
+}
+
+.ai-recommendations > strong {
+  color: #111827;
+}
+
+.ai-recommendations ul {
+  display: grid;
+  gap: 8px;
+  margin: 10px 0 0;
+  padding-left: 22px;
+  color: #4b5563;
+  line-height: 1.6;
+}
+
 .calendar-panel,
 .quick-expense-panel {
   align-self: start;
@@ -862,8 +933,13 @@ select {
   .form-row,
   .daily-expense-list.expanded,
   .two-column-panel,
-  .table-row {
+  .table-row,
+  .ai-highlight-row {
     grid-template-columns: 1fr;
+  }
+
+  .ai-highlight-row {
+    gap: 6px;
   }
 
   .calendar-weekdays,

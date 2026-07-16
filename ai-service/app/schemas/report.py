@@ -1,4 +1,4 @@
-from typing import Literal
+from typing import Annotated, Literal
 
 from pydantic import Field
 
@@ -28,14 +28,19 @@ class SpendingReportRequest(ApiModel):
 
 class ReportHighlight(ApiModel):
     type: Literal["top_category", "budget", "month_over_month", "subscription"]
-    title: str
-    description: str
+    title: str = Field(min_length=1, max_length=200)
+    description: str = Field(min_length=1, max_length=1000)
     severity: Literal["info", "warning", "positive"]
 
 
-class SpendingReportResponse(ApiModel):
-    provider: str
-    period: str
-    summary: str
-    highlights: list[ReportHighlight]
-    recommendations: list[str]
+class SpendingReportContent(ApiModel):
+    summary: str = Field(min_length=1, max_length=1000)
+    highlights: list[ReportHighlight] = Field(max_length=8)
+    recommendations: list[Annotated[str, Field(min_length=1, max_length=500)]] = Field(
+        max_length=8
+    )
+
+
+class SpendingReportResponse(SpendingReportContent):
+    provider: str = Field(min_length=1, max_length=100)
+    period: str = Field(pattern=r"^\d{4}-(0[1-9]|1[0-2])$")

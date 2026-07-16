@@ -23,5 +23,13 @@ class AppServiceProvider extends ServiceProvider
                 max(1, (int) config('budgetly.receipts.upload_rate_per_minute'))
             )->by("receipt-upload:{$userKey}");
         });
+
+        RateLimiter::for('ai-reports', function (Request $request): Limit {
+            $userKey = $request->user()?->getAuthIdentifier() ?? $request->ip();
+
+            return Limit::perMinute(
+                max(1, (int) config('ai.report_rate_per_minute'))
+            )->by("ai-report:{$userKey}");
+        });
     }
 }

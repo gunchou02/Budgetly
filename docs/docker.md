@@ -82,6 +82,11 @@ MYSQL_PORT=3306
 AI_PORT=8000
 REDIS_PORT=6379
 AI_INTERNAL_API_TOKEN=local-ai-secret
+AI_RECEIPT_PROVIDER=fake
+AI_REPORT_PROVIDER=fake
+AI_OPENAI_MODEL=gpt-4o-mini
+AI_REPORT_RATE_PER_MINUTE=10
+OPENAI_API_KEY=
 DB_DATABASE=budgetly
 DB_USERNAME=budgetly
 DB_PASSWORD=secret
@@ -89,6 +94,8 @@ DB_ROOT_PASSWORD=root
 ```
 
 レシート画像はLaravelコンテナの`storage/app/private`へ保存されます。アップロード上限や保存diskは`backend/.env`の`RECEIPT_*`設定で変更できます。ローカル用原本はGit管理されません。queue名、再試行間隔、Redis databaseは`QUEUE_*`と`REDIS_*`設定で変更できます。
+
+実AIを使用する場合だけ`AI_RECEIPT_PROVIDER`または`AI_REPORT_PROVIDER`を`openai`へ変更し、`OPENAI_API_KEY`を設定します。keyがない状態でOpenAI providerを選択するとAI serviceは起動時に設定エラーとして停止します。通常のローカル開発と自動テストでは`fake`を維持します。
 
 These credentials are development defaults. Do not reuse them in staging or production.
 
@@ -154,3 +161,5 @@ Check the worker, Redis, and AI service logs. After the dependency recovers, cal
 docker compose ps
 docker compose logs --tail=100 worker redis ai-service
 ```
+
+`invalid_receipt_image`は拡張子ではなく実画像形式、破損、容量、pixel数の再検証に失敗した状態です。`provider_unavailable`または`ai_request_failed`はprovider回復後にretry APIで再実行できます。

@@ -57,4 +57,6 @@ Route::middleware('auth:sanctum')->group(function () {
 
     Route::get('/reports/categories', [ReportController::class, 'categories']);
     Route::get('/reports/monthly', [ReportController::class, 'monthly']);
+    Route::get('/reports/insights', [ReportController::class, 'insights'])
+        ->middleware('throttle:ai-reports');
 });

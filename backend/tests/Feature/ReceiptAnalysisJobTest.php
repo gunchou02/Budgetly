@@ -64,13 +64,16 @@ class ReceiptAnalysisJobTest extends TestCase
         ]);
 
         Http::assertSent(function (Request $request) use ($receipt, $category): bool {
-            $data = $request->data();
+            $payload = collect($request->data())->firstWhere('name', 'payload');
+            $data = json_decode((string) ($payload['contents'] ?? ''), true);
 
             return $request->url() === 'http://ai-service:8000/v1/receipts/analyze'
                 && $request->hasHeader('X-Internal-Token', 'test-internal-token')
                 && $request->hasHeader('X-Request-ID', $receipt->job_id)
+                && $request->hasFile('image', filename: $receipt->original_name)
                 && $data['job_id'] === $receipt->job_id
                 && $data['image_key'] === $receipt->image_path
+                && $data['mime_type'] === 'image/png'
                 && $data['category_candidates'][0]['id'] === $category->id;
         });
 

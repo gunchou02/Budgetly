@@ -1,3 +1,4 @@
+import json
 from uuid import uuid4
 
 from fastapi.testclient import TestClient
@@ -46,7 +47,11 @@ def report_payload() -> dict[str, object]:
 
 
 def test_analysis_requires_internal_token(client: TestClient) -> None:
-    response = client.post("/v1/receipts/analyze", json=receipt_payload())
+    response = client.post(
+        "/v1/receipts/analyze",
+        data={"payload": json.dumps(receipt_payload())},
+        files={"image": ("receipt.jpg", b"image", "image/jpeg")},
+    )
 
     assert response.status_code == 401
     assert response.json()["error"] == {
@@ -59,11 +64,15 @@ def test_analysis_requires_internal_token(client: TestClient) -> None:
 def test_receipt_validation_uses_common_error_shape(
     client: TestClient,
     internal_headers: dict[str, str],
+    receipt_jpeg: bytes,
 ) -> None:
+    payload = receipt_payload()
+    payload["mime_type"] = "application/pdf"
     response = client.post(
         "/v1/receipts/analyze",
         headers=internal_headers,
-        json={"mime_type": "application/pdf"},
+        data={"payload": json.dumps(payload)},
+        files={"image": ("receipt.jpg", receipt_jpeg, "image/jpeg")},
     )
 
     assert response.status_code == 422
@@ -74,11 +83,13 @@ def test_receipt_validation_uses_common_error_shape(
 def test_fake_receipt_analysis(
     client: TestClient,
     internal_headers: dict[str, str],
+    receipt_jpeg: bytes,
 ) -> None:
     response = client.post(
         "/v1/receipts/analyze",
         headers=internal_headers,
-        json=receipt_payload(),
+        data={"payload": json.dumps(receipt_payload())},
+        files={"image": ("receipt.jpg", receipt_jpeg, "image/jpeg")},
     )
 
     assert response.status_code == 200
@@ -87,6 +98,39 @@ def test_fake_receipt_analysis(
     assert response.json()["amount"] == 1280
     assert response.json()["suggested_category_id"] == 2
     assert response.json()["confidence"]["overall"] == 0.94
+
+
+def test_receipt_rejects_mime_type_that_does_not_match_image(
+    client: TestClient,
+    internal_headers: dict[str, str],
+    receipt_jpeg: bytes,
+) -> None:
+    payload = receipt_payload()
+    payload["mime_type"] = "image/png"
+    response = client.post(
+        "/v1/receipts/analyze",
+        headers=internal_headers,
+        data={"payload": json.dumps(payload)},
+        files={"image": ("receipt.png", receipt_jpeg, "image/png")},
+    )
+
+    assert response.status_code == 422
+    assert response.json()["error"]["code"] == "invalid_receipt_image"
+
+
+def test_receipt_rejects_corrupt_image(
+    client: TestClient,
+    internal_headers: dict[str, str],
+) -> None:
+    response = client.post(
+        "/v1/receipts/analyze",
+        headers=internal_headers,
+        data={"payload": json.dumps(receipt_payload())},
+        files={"image": ("receipt.jpg", b"not-a-jpeg", "image/jpeg")},
+    )
+
+    assert response.status_code == 422
+    assert response.json()["error"]["code"] == "invalid_receipt_image"
 
 
 def test_fake_spending_report_explains_top_category(

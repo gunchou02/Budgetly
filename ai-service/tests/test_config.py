@@ -15,3 +15,29 @@ def test_development_token_is_rejected_in_production() -> None:
             environment="production",
             internal_api_token=SecretStr("local-ai-secret"),
         )
+
+
+def test_openai_provider_requires_api_key() -> None:
+    with pytest.raises(ValidationError):
+        Settings(
+            internal_api_token=SecretStr("test-internal-token"),
+            receipt_provider="openai",
+        )
+
+    with pytest.raises(ValidationError):
+        Settings(
+            internal_api_token=SecretStr("test-internal-token"),
+            receipt_provider="openai",
+            openai_api_key=SecretStr("   "),
+        )
+
+
+def test_openai_provider_accepts_api_key_from_secret_setting() -> None:
+    settings = Settings(
+        internal_api_token=SecretStr("test-internal-token"),
+        report_provider="openai",
+        openai_api_key=SecretStr("test-openai-key"),
+    )
+
+    assert settings.report_provider == "openai"
+    assert settings.openai_api_key is not None
