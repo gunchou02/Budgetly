@@ -2,14 +2,12 @@
 
 ## Prerequisites
 
-- Docker Desktop with Docker Compose v2
-- Available host ports: `5173`, `6379`, `8000`, `8080`, and `3306`
-
-PHP, Composer, Node.js, npm, Python, Nginx, MySQL, and Redis do not need to be installed on the host when using this workflow.
+- Docker Desktop with Compose v2
+- approximately 6 GB of free memory for the complete legacy and target stack
+- ports `5173`, `8000`, `8080`, `5432`, `3306`, and `6379` available, or custom
+  values in `.env`
 
 ## First Start
-
-Run these commands from the project root:
 
 ```bash
 cp .env.example .env
@@ -17,149 +15,180 @@ docker compose up -d --build
 docker compose ps
 ```
 
-The backend container performs the following idempotent initialization before PHP-FPM starts:
+The frontend container performs:
 
-1. Creates `backend/.env` from `backend/.env.example` when it is missing.
-2. Installs Composer dependencies in the `backend-vendor` volume.
-3. Generates `APP_KEY` when it is missing.
-4. Runs database migrations and the default category seeder.
+1. `npm ci`
+2. `prisma migrate deploy`
+3. `next dev --hostname 0.0.0.0 --port 5173`
 
-The frontend container installs the exact packages from `package-lock.json` in the `frontend-node-modules` volume before starting the Next.js development server.
+Wait until PostgreSQL, FastAPI, and the frontend are healthy or ready.
 
-The AI service container installs pinned Python dependencies and starts FastAPI with reload enabled. Its analysis endpoints require the shared `X-Internal-Token`; the host port is intended only for local diagnostics.
-
-Redis uses append-only persistence in the `redis-data` volume. The `worker` container consumes the `receipts` queue and updates durable receipt status in MySQL. Redis and the worker are not dependencies of ordinary budget, expense, subscription, dashboard, or report requests.
-
-Default endpoints:
-
-```txt
-Frontend: http://127.0.0.1:5173
-API:      http://127.0.0.1:8080/api
-Health:   http://127.0.0.1:8080/api/health
-AI:       http://127.0.0.1:8000/health
-Redis:    127.0.0.1:6379
+```bash
+curl http://127.0.0.1:5173/api/health
+curl http://127.0.0.1:8000/health
 ```
+
+Open `http://127.0.0.1:5173`.
+
+## Services
+
+| Service | Purpose | Primary target? |
+| --- | --- | --- |
+| `frontend` | Next.js UI, API, Prisma, receipt orchestration | Yes |
+| `postgres` | Target local database | Yes |
+| `ai-service` | FastAPI OCR and AI work | Yes |
+| `backend` | Legacy Laravel API | No |
+| `worker` | Legacy Laravel receipt worker | No |
+| `nginx` | Legacy Laravel HTTP entry point | No |
+| `mysql` | Legacy database | No |
+| `redis` | Legacy queue and cache | No |
+
+The legacy services remain available during migration and can be removed after
+data migration and rollback requirements are resolved.
 
 ## Common Commands
 
 ```bash
-# Follow all logs
-docker compose logs -f
+# Follow target-stack logs
+docker compose logs -f frontend postgres ai-service
 
-# Follow one service
-docker compose logs -f backend
-docker compose logs -f worker
+# Restart one service
+docker compose restart frontend
 
-# Check the receipt queue and failed jobs
-docker compose exec backend php artisan queue:monitor redis:receipts --max=100
-docker compose exec backend php artisan queue:failed
+# Rebuild after Dockerfile or dependency changes
+docker compose up -d --build frontend ai-service
 
-# Run backend tests
-docker compose exec backend composer test
+# Stop while preserving volumes
+docker compose down
 
-# Run the frontend production build
-docker compose exec frontend npm run build
+# Show resolved Compose configuration
+docker compose config
+```
 
-# Run AI service lint and tests
+## Database Commands
+
+```bash
+# Migration status
+docker compose exec frontend npm run db:status
+
+# Apply committed migrations
+docker compose exec frontend npm run db:deploy
+
+# Format the Prisma schema
+docker compose exec frontend npx prisma format
+
+# PostgreSQL shell
+docker compose exec postgres \
+  psql -U budgetly -d budgetly
+```
+
+Create a new migration with a normal local Node process or a one-off frontend
+container connected to PostgreSQL. Commit both `schema.prisma` and the generated
+migration SQL.
+
+## Verification Commands
+
+```bash
+# Next.js static checks and unit tests
+docker compose run --rm --no-deps frontend npm run lint
+docker compose run --rm --no-deps frontend npm run test:run
+docker compose run --rm --no-deps frontend npm run build
+
+# End-to-end API integration against the running stack
+docker compose run --rm --no-deps \
+  -e BUDGETLY_INTEGRATION_BASE_URL=http://frontend:5173 \
+  frontend npm run test:integration
+
+# FastAPI
 docker compose exec ai-service ruff check .
 docker compose exec ai-service pytest
 
-# Stop containers while preserving database data
-docker compose down
-
-# Rebuild images after changing a Dockerfile
-docker compose up -d --build
+# Legacy Laravel regression while it remains in the repository
+docker compose exec backend vendor/bin/phpunit
 ```
 
 ## Configuration
 
-Docker Compose reads the root `.env` file. Copy `.env.example` and change values only when the default ports or local credentials conflict with another project.
+Important root `.env` values:
 
 ```dotenv
-API_PORT=8080
 FRONTEND_PORT=5173
-MYSQL_PORT=3306
 AI_PORT=8000
-REDIS_PORT=6379
+POSTGRES_PORT=5432
+POSTGRES_DB=budgetly
+POSTGRES_USER=budgetly
+POSTGRES_PASSWORD=secret
 AI_INTERNAL_API_TOKEN=local-ai-secret
 AI_RECEIPT_PROVIDER=fake
 AI_REPORT_PROVIDER=fake
-AI_OPENAI_MODEL=gpt-4o-mini
-AI_REPORT_RATE_PER_MINUTE=10
-OPENAI_API_KEY=
-DB_DATABASE=budgetly
-DB_USERNAME=budgetly
-DB_PASSWORD=secret
-DB_ROOT_PASSWORD=root
 ```
 
-レシート画像はLaravelコンテナの`storage/app/private`へ保存されます。アップロード上限や保存diskは`backend/.env`の`RECEIPT_*`設定で変更できます。ローカル用原本はGit管理されません。queue名、再試行間隔、Redis databaseは`QUEUE_*`と`REDIS_*`設定で変更できます。
-
-実AIを使用する場合だけ`AI_RECEIPT_PROVIDER`または`AI_REPORT_PROVIDER`を`openai`へ変更し、`OPENAI_API_KEY`を設定します。keyがない状態でOpenAI providerを選択するとAI serviceは起動時に設定エラーとして停止します。通常のローカル開発と自動テストでは`fake`を維持します。
-
-These credentials are development defaults. Do not reuse them in staging or production.
-
-When `FRONTEND_PORT` or `API_PORT` is changed, also update `frontend/.env` so the browser uses the matching API URL:
+Local receipt behavior is intentionally cost-free:
 
 ```dotenv
-NEXT_PUBLIC_API_BASE_URL=http://127.0.0.1:8080/api
+NEXT_PUBLIC_RECEIPT_UPLOAD_MODE=server
+RECEIPT_STORAGE_DRIVER=local
+BUDGETLY_QUEUE_DRIVER=inline
 ```
+
+The Compose file passes those values directly to the frontend. Production
+values are documented in [Vercel Deployment](vercel.md).
 
 ## Reset Local Data
 
-The following command deletes the Docker-managed MySQL data and all local application records:
+`docker compose down` preserves data. To remove only the target PostgreSQL
+database, inspect the volume name first:
 
 ```bash
-docker compose down -v
-docker compose up -d --build
-```
-
-Use it only when a clean local database is intended.
-
-## Troubleshooting
-
-### API returns 502 during the first start
-
-Composer installation and database migrations may still be running. Check the backend log and wait until `docker compose ps` reports the backend as healthy:
-
-```bash
-docker compose logs -f backend
-```
-
-If only the backend container was recreated while Nginx stayed running, restart Nginx so it resolves the new container address:
-
-```bash
-docker compose restart nginx
-```
-
-### A port is already allocated
-
-Change the conflicting value in the root `.env`, then recreate the containers:
-
-```bash
+docker volume ls
 docker compose down
+docker volume rm budgetly_postgres-data
 docker compose up -d
 ```
 
-### Dependencies are out of date
+Do not delete `mysql-data` until legacy data is confirmed unnecessary or has
+been migrated.
 
-Recreate the dependency volumes after changing lock files:
+## Troubleshooting
 
-```bash
-docker compose down
-docker volume rm budgetly_backend-vendor budgetly_frontend-node-modules
-docker compose up -d --build
-```
+### Frontend starts before the schema exists
 
-The volume names assume the default `COMPOSE_PROJECT_NAME=budgetly`.
-
-### A receipt remains failed
-
-Check the worker, Redis, and AI service logs. After the dependency recovers, call `POST /api/receipts/{receipt}/retry`. Only the receipt owner can retry a terminal `failed` analysis.
+Check migration logs:
 
 ```bash
-docker compose ps
-docker compose logs --tail=100 worker redis ai-service
+docker compose logs frontend
+docker compose exec frontend npm run db:status
 ```
 
-`invalid_receipt_image`は拡張子ではなく実画像形式、破損、容量、pixel数の再検証に失敗した状態です。`provider_unavailable`または`ai_request_failed`はprovider回復後にretry APIで再実行できます。
+The startup command should contain `npm run db:deploy`.
+
+### Receipt upload returns a validation error
+
+Use JPEG, PNG, or WebP under 5 MB. Renaming a non-image file is rejected because
+the server checks the actual image signature.
+
+### Receipt remains `failed`
+
+Inspect both services:
+
+```bash
+docker compose logs frontend ai-service
+```
+
+Confirm that both services use the same `AI_INTERNAL_API_TOKEN`. The UI exposes
+a retry action for failed receipts.
+
+### AI output looks synthetic
+
+The local default provider is `fake`, so its receipt values are deterministic
+test data and do not come from the uploaded image. Set the receipt provider to
+`openai` and provide an API key to perform real extraction.
+
+### A port is already allocated
+
+Override it in root `.env`, for example:
+
+```dotenv
+FRONTEND_PORT=5174
+POSTGRES_PORT=5433
+```

@@ -1,196 +1,93 @@
 # Roadmap
 
-Budgetlyの実装フェーズです。
+## Completed Product Phases
 
-## Completed
+### Phase 0-9: Core Budgetly Product
 
-### Phase 0: Planning
+- product planning and Laravel foundation
+- authentication, categories, budgets, expenses, and subscriptions
+- dashboard and deterministic reports
+- React/Next.js user interface and UX polish
+- Docker development environment
 
-- サービス概要
-- MVP範囲
-- 技術スタック
-- データ構造方針
+### Phase 10-15: AI and Receipt Foundation
 
-### Phase 1: Project Setup
-
-- Laravel backend
-- React frontend
-- Docker Compose
-- MySQL
-- API health check
-
-### Phase 2: Core APIs
-
-- Auth API
-- User default categories
-- Monthly budget API
-- Expense CRUD API
-- Subscription CRUD API
-
-### Phase 3: Dashboard API
-
-- Monthly budget summary
-- Expense total
-- Subscription total
-- Remaining budget
-- Usage rate
-
-### Phase 4: Report API
-
-- Category report
-- Monthly report
-- Recharts連携用データ
-
-### Phase 5: Frontend API Integration
-
-- Login/register flow
-- Protected routes
-- Dashboard
-- Budgets
-- Subscriptions
-- Reports
-
-### Phase 6: Frontend UX Polish
-
-- Amount input UX
-- Dashboard calendar
-- Quick expense panel
-- Empty states
-- Basic responsive layout
-- Japanese UI copy adjustment
-
-### Phase 7: Documentation and QA
-
-- README update
-- API documentation
-- Database documentation
-- QA checklist
-- Roadmap documentation
-- Build/test verification
-
-### Phase 8: Frontend QA and Minor UI Polish
-
-- PC and mobile viewport checks
-- Form validation message review
-- Loading and error state review
-- Chart readability review
-- Manual browser QA
-- Docker API URL alignment
-
-### Phase 9: Docker Development Environment Polish
-
-- Automatic Composer and npm dependency setup
-- Automatic application key, migration, and seed setup
-- MySQL and backend health checks
-- Configurable local ports and database credentials
-- Docker command and troubleshooting documentation
-- Container-based build/test verification
-
-### Phase 10: Architecture and Migration Design
-
-- Next.js, TypeScript, and Tailwind migration boundaries
-- Laravel and FastAPI service responsibilities
-- MySQL retention decision
-- Redis queue responsibility
-- Receipt OCR workflow and security constraints
-
-### Phase 11: Next.js Frontend Migration
-
-- Next.js App Router
-- TypeScript strict mode
-- Tailwind CSS
-- Existing route and navigation parity
-- Typed Laravel API client
-- Docker and browser QA
-
-### Phase 12: FastAPI Foundation
-
-- Internal AI service with service-token authentication
-- Health, readiness, structured error, and request ID handling
-- Receipt analysis and spending report Pydantic contracts
-- Deterministic fake providers for local development and tests
-- Docker and Laravel environment integration
-- Pytest and Ruff verification
-
-### Phase 13: Receipt Domain and Laravel Integration
-
-- Private receipt image upload and validation
-- Receipt and analysis database models
-- User-scoped status, confirmation, and deletion APIs
-- Transactional and idempotent expense creation
-- Upload rate limiting and storage cleanup
-- SQLite and MySQL verification
-
-### Phase 14: Redis Queue
-
-- Redis-backed asynchronous receipt analysis
-- Dedicated Laravel queue worker
-- FastAPI response validation and user-owned category enforcement
-- Retry with backoff and terminal failure status
-- User-scoped failed-job retry API
-- Idempotent analysis persistence and duplicate delivery protection
-
-### Phase 15: OCR and AI Analysis
-
-- Receipt image validation, orientation correction, resize, and normalization
-- OpenAI vision provider for Japanese merchant, date, and total extraction
-- User-owned category suggestion and confidence reporting
-- Japanese monthly spending summaries and recommendations
-- Laravel multipart streaming and report result caching
-- Private receipt quality evaluation workflow
-
-## Next Phases
-
-### Phase 16: Integrated Docker and QA
-
-- Next.js, Laravel, FastAPI, MySQL, and Redis integration
-- End-to-end receipt workflow
-- Failure and recovery QA
-
-### Phase 17: GitHub Actions
-
-- Backend, frontend, and AI service checks
-- Docker build verification
-- Deployment gate
-
-### Phase 18: AWS Deployment
-
-- RDS MySQL
-- ElastiCache Redis
-- S3 receipt storage
-- HTTPS, secrets, logs, and backups
-
-## Current Scope
-
-Implemented:
-
-- Auth
-- User-specific categories
-- Monthly budgets
-- Expenses
-- Subscriptions
-- Dashboard summary
-- Reports
-- Next.js frontend API integration
-- Basic UX polish
-- Documentation
-- Target architecture and migration plan
+- migration architecture design
+- Next.js and TypeScript frontend migration
 - FastAPI service foundation
-- Receipt and spending report AI contracts
-- Receipt upload, review, confirmation, and deletion APIs
-- Private local receipt storage
-- Redis receipt queue and Laravel worker
-- Durable receipt analysis status and retry API
-- OpenAI receipt and spending report providers
-- Receipt image preprocessing and private multipart transfer
-- AI spending insight API and report UI
+- receipt domain and upload UI
+- Redis queue in the legacy implementation
+- fake and OpenAI OCR/report providers
 
-Not implemented yet:
+### Phase 16: Next.js Full-Stack and PostgreSQL Migration
 
-- Password reset
-- Email verification
-- Category update/delete
-- Live OpenAI quality baseline with sanitized real receipts
-- AWS deployment
-- Production CI/CD
-- iOS app
+- Prisma and PostgreSQL/Neon schema
+- Next.js Route Handlers for all main APIs
+- secure cookie sessions
+- dashboard and reports moved from Laravel
+- receipt orchestration moved from Laravel
+- PostgreSQL-backed cache and rate limiting
+- frontend switched from bearer tokens to same-origin cookies
+
+### Phase 17: Vercel-Ready Heavy API Split
+
+- FastAPI kept as the Python compute/AI boundary
+- private Vercel Blob direct-upload path
+- inline and optional Vercel Queue processing
+- separate Vercel project configuration for Next.js and FastAPI
+- unit, integration, and visual verification
+- architecture, API, database, Docker, and deployment documentation
+
+## Next Phase
+
+### Phase 18: Production Deployment and CI
+
+1. Provision Neon and private Vercel Blob.
+2. Deploy `ai-service` with fake providers.
+3. Deploy `frontend` and apply Prisma migrations.
+4. run authenticated CRUD and receipt smoke tests.
+5. Add GitHub Actions for Next.js, FastAPI, Prisma, and legacy regression.
+6. Configure production logs, function timeouts, and alerts.
+7. Enable OpenAI with a spending limit after fake-provider acceptance.
+
+Completion criteria:
+
+- production login and all user-owned CRUD flows work;
+- receipt upload works on desktop and a real mobile camera;
+- a receipt can be reviewed and confirmed once;
+- AI report failures degrade to a clear retryable state;
+- CI blocks lint, type, migration, or test regressions;
+- no legacy service is required by the production request path.
+
+## Later Phases
+
+### Phase 19: Data Migration and Legacy Removal
+
+- decide whether MySQL test data can be discarded
+- build and rehearse an importer when real data exists
+- validate totals and ownership after import
+- archive Laravel code only after the rollback period
+
+### Phase 20: Production Hardening
+
+- durable queue activation if receipt traffic requires it
+- scheduled cleanup for expired sessions, caches, and rate-limit buckets
+- observability dashboards and provider cost monitoring
+- account recovery and email verification
+- automated receipt quality evaluation dataset
+
+### Phase 21: Product Expansion
+
+- budget recommendations
+- recurring-expense anomaly detection
+- export and account deletion
+- optional iOS client using the same Next.js API
+
+## Current Scope Guardrails
+
+- Navigation remains unchanged.
+- Amount-entry UX remains unchanged.
+- JPY remains integer-based.
+- Next.js owns authorization and financial truth.
+- Python is used for genuinely heavy, image, OCR, or AI workloads.
+- OpenAI remains optional and billable.

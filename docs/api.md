@@ -1,394 +1,327 @@
 # API Documentation
 
-Budgetly APIはLaravel SanctumのPersonal Access Token方式で認証します。
-
 ## Base URL
 
-```txt
-http://127.0.0.1:8080/api
+The browser-facing API is served by the Next.js application:
+
+```text
+Local:      http://127.0.0.1:5173/api
+Production: https://<frontend-domain>/api
 ```
 
-When running the Laravel server directly with `php artisan serve --port=8081`, use `http://127.0.0.1:8081/api` instead.
-
-認証が必要なAPIでは、次のヘッダーを付けます。
-
-```txt
-Authorization: Bearer {token}
-Accept: application/json
-```
-
-## Common Error Responses
-
-Validation error:
+Successful resource responses use:
 
 ```json
 {
-  "message": "The given data was invalid.",
-  "errors": {
-    "email": ["The email field is required."]
-  }
+  "data": {}
 }
 ```
 
-Unauthenticated:
+## Authentication
+
+Authentication uses the `budgetly_session` `HttpOnly` cookie. Browser requests
+must include credentials; the application Axios client already sets
+`withCredentials: true`.
+
+Do not store a bearer token in `localStorage` and do not send an
+`Authorization` header to the Next.js API.
+
+### `POST /register`
 
 ```json
 {
-  "message": "Unauthenticated."
-}
-```
-
-Not found or another user's data:
-
-```json
-{
-  "message": "No query results for model."
-}
-```
-
-Receipt is not ready for confirmation:
-
-```json
-{
-  "message": "The receipt is not ready for confirmation."
-}
-```
-
-## Health
-
-### GET /health
-
-認証不要。APIの稼働確認に使用します。
-
-```bash
-curl http://127.0.0.1:8080/api/health
-```
-
-## Auth
-
-### POST /register
-
-ユーザーを作成し、初期カテゴリをユーザー別に作成します。
-
-Request:
-
-```json
-{
-  "name": "Taro",
-  "email": "taro@example.com",
+  "name": "Budgetly User",
+  "email": "user@example.com",
   "password": "password123",
   "password_confirmation": "password123"
 }
 ```
 
-Response:
+Returns `201`, sets the session cookie, and creates the user's default Japanese
+categories. Passwords must contain at least 8 characters and no more than 72
+UTF-8 bytes, matching bcrypt's safe input boundary.
+
+### `POST /login`
 
 ```json
 {
-  "data": {
-    "user": {
-      "id": 1,
-      "name": "Taro",
-      "email": "taro@example.com"
-    },
-    "token": "plain-text-token"
-  }
-}
-```
-
-### POST /login
-
-ログインしてAPIトークンを発行します。
-
-Request:
-
-```json
-{
-  "email": "taro@example.com",
+  "email": "user@example.com",
   "password": "password123"
 }
 ```
 
-### POST /logout
+Returns `200` and sets the session cookie.
 
-認証必須。現在のAPIトークンを削除します。
+### `POST /logout`
 
-### GET /me
+Deletes the current database session and expires the cookie.
 
-認証必須。ログイン中のユーザー情報を返します。
+### `GET /me`
 
-## Categories
+Returns the authenticated public user.
 
-### GET /categories
-
-認証必須。ログインユーザーのカテゴリを`sort_order`順で返します。
-
-Query:
-
-```txt
-type=expense|fixed
-```
-
-### POST /categories
-
-認証必須。ログインユーザー用のカテゴリを作成します。
-
-Request:
+## Errors
 
 ```json
 {
-  "name": "書籍",
+  "message": "Input is invalid.",
+  "errors": {
+    "amount": ["Amount must be a positive integer."]
+  }
+}
+```
+
+| Status | Meaning |
+| --- | --- |
+| `400` | Invalid JSON or malformed request |
+| `401` | Missing or expired session |
+| `404` | Missing resource or resource owned by another user |
+| `409` | Receipt state or idempotency conflict |
+| `413` | Receipt image exceeds the upload size limit |
+| `422` | Validation or unique-domain conflict |
+| `429` | Rate limit exceeded |
+| `500` | Unexpected server error |
+| `502` | FastAPI or AI provider returned an invalid response |
+| `503` | FastAPI or storage dependency unavailable |
+
+Validation messages returned by the product API are Japanese.
+
+## Health
+
+### `GET /health`
+
+Public. Returns service name, Japanese locale, and `Asia/Tokyo` time zone.
+
+## Categories
+
+All category routes require authentication.
+
+### `GET /categories`
+
+Returns the user's categories ordered by `sort_order`.
+
+### `POST /categories`
+
+```json
+{
+  "name": "ペット",
   "type": "expense"
 }
 ```
 
-Notes:
-
-- `type`は`expense`または`fixed`です。
-- 同じユーザー内でカテゴリ名は重複できません。
+The server assigns a display color, sort order, and `is_default=false`.
 
 ## Monthly Budgets
 
-### GET /budgets
+### `GET /budgets?year=2026&month=7`
 
-認証必須。指定月の予算を返します。
+Returns the matching budget or `data: null`.
 
-Query:
-
-```txt
-year=2026&month=7
-```
-
-### POST /budgets
-
-認証必須。月間予算を作成します。
-
-Request:
+### `POST /budgets`
 
 ```json
 {
   "year": 2026,
   "month": 7,
-  "amount": 40000
+  "amount": 100000
 }
 ```
 
-Notes:
+Returns `201`. A user can have only one budget for the same year and month.
 
-- 金額はJPY integerです。
-- 同じユーザーの同じ`year + month`は重複できません。
+### `PUT /budgets/{budget}`
 
-### PUT /budgets/{budget}
-
-認証必須。ログインユーザー本人の月間予算だけ更新できます。
+Uses the same payload as creation and updates only an owned budget.
 
 ## Expenses
 
-### GET /expenses
+### `GET /expenses`
 
-認証必須。ログインユーザーの支出一覧を返します。
+Optional filters:
 
-Query:
-
-```txt
-year=2026&month=7&category_id=1
+```text
+year=2026
+month=7
+category_id=1
 ```
 
-### POST /expenses
+When both year and month are supplied, the result is limited to that month.
 
-認証必須。支出を作成します。
-
-Request:
+### `POST /expenses`
 
 ```json
 {
   "category_id": 1,
   "title": "ランチ",
   "amount": 1200,
-  "spent_at": "2026-07-09",
-  "memo": "駅前"
+  "spent_at": "2026-07-24",
+  "memo": ""
 }
 ```
 
-### GET /expenses/{expense}
+The category must belong to the authenticated user.
 
-認証必須。ログインユーザー本人の支出だけ取得できます。
+### `GET /expenses/{expense}`
 
-### PUT /expenses/{expense}
+Returns one owned expense.
 
-認証必須。ログインユーザー本人の支出だけ更新できます。
+### `PUT /expenses/{expense}`
 
-### DELETE /expenses/{expense}
+Uses the creation payload.
 
-認証必須。ログインユーザー本人の支出だけ削除できます。
+### `DELETE /expenses/{expense}`
 
-## Receipts
-
-### POST /receipts
-
-認証必須。レシート画像を非公開ストレージへ保存し、`queued`状態のレシートを作成します。リクエストは`multipart/form-data`です。
-
-```bash
-curl -X POST http://127.0.0.1:8080/api/receipts \
-  -H 'Authorization: Bearer {token}' \
-  -H 'Accept: application/json' \
-  -F 'image=@receipt.jpg'
-```
-
-Validation:
-
-- MIME type: `image/jpeg`, `image/png`, `image/webp`
-- Extension: `jpg`, `jpeg`, `png`, `webp`
-- Maximum size: 5 MB by default
-- Maximum pixel count: 40 million by default
-- Upload rate: 10 requests per minute per user by default
-
-保存パスはレスポンスに含めません。作成後はRedisの`receipts` queueへ登録され、workerがFastAPIを呼び出します。Redisへ登録できない場合もレシート原本とメタデータは保持され、レスポンスの状態は`failed`、`failure_code`は`queue_unavailable`になります。
-
-### GET /receipts/{receipt}
-
-認証必須。ログインユーザー本人のレシート状態、分析結果、確定済み支出を返します。他ユーザーのIDは404になります。
-
-Receipt states:
-
-```txt
-queued -> processing -> review_required -> confirmed
-                    \-> failed
-```
-
-### POST /receipts/{receipt}/retry
-
-認証必須。ログインユーザー本人の`failed`レシートを`queued`へ戻し、分析jobを再登録します。受付成功は202、Redisへ再登録できない場合は503、`failed`以外の状態は409、他ユーザーのIDは404です。
-
-```bash
-curl -X POST http://127.0.0.1:8080/api/receipts/{receipt}/retry \
-  -H 'Authorization: Bearer {token}' \
-  -H 'Accept: application/json'
-```
-
-### POST /receipts/{receipt}/confirm
-
-認証必須。`review_required`状態のAI提案をユーザーが確認・修正した値で支出へ変換します。
-
-Request:
-
-```json
-{
-  "category_id": 1,
-  "title": "セブン-イレブン",
-  "amount": 1280,
-  "spent_at": "2026-07-13",
-  "memo": "内容を確認済み"
-}
-```
-
-最初の確定は201、同じレシートの再確定は既存支出を200で返します。MySQLの行ロックとトランザクションを使い、支出を重複作成しません。分析前のレシートは409になります。
-
-### DELETE /receipts/{receipt}
-
-認証必須。ログインユーザー本人のレシート原本、メタデータ、分析結果を削除します。すでに確定した支出は削除しません。
+Returns `204`.
 
 ## Subscriptions
 
-### GET /subscriptions
+### `GET /subscriptions`
 
-認証必須。ログインユーザーのサブスク一覧を返します。
+Optional filters:
 
-Query:
-
-```txt
-status=active|canceled|all&category_id=1
+```text
+status=active|canceled|all
+category_id=1
 ```
 
-### POST /subscriptions
+### `POST /subscriptions`
 
-認証必須。サブスクを作成します。
+```json
+{
+  "category_id": 10,
+  "name": "Video Service",
+  "amount": 1500,
+  "billing_cycle": "monthly",
+  "billing_day": 10,
+  "started_at": "2026-01-01",
+  "canceled_at": null,
+  "memo": ""
+}
+```
 
-Request:
+### `GET /subscriptions/{subscription}`
+
+Returns one owned subscription.
+
+### `PUT /subscriptions/{subscription}`
+
+Uses the creation payload.
+
+### `PATCH /subscriptions/{subscription}/cancel`
+
+```json
+{
+  "canceled_at": "2026-07-24"
+}
+```
+
+An omitted or null date uses the application's current date.
+
+### `DELETE /subscriptions/{subscription}`
+
+Returns `204`.
+
+## Dashboard and Reports
+
+### `GET /dashboard?year=2026&month=7`
+
+Returns the budget, expense total, active subscription total, total spent,
+remaining amount, category breakdown, recent expenses, and subscription list.
+
+### `GET /reports/categories?year=2026&month=7`
+
+Returns deterministic category totals and percentages.
+
+### `GET /reports/monthly?year=2026`
+
+Returns all 12 monthly totals for the selected year.
+
+### `GET /reports/insights?year=2026&month=7`
+
+Returns a structured Japanese AI spending report. Next.js calculates the
+financial facts, rate-limits the request, calls FastAPI, validates the response,
+and caches it. The fake provider is used by default in local development.
+
+## Receipts
+
+Allowed images are JPEG, PNG, and WebP up to 5 MB and 40 megapixels.
+
+### `POST /receipts`
+
+Local/server upload endpoint. Send `multipart/form-data` with an `image` field.
+Returns `201` with a receipt in `queued`, `processing`, or
+`review_required` state.
+
+### `POST /receipts/blob-upload`
+
+Production browser upload handshake used by `@vercel/blob/client`. It issues a
+short-lived token only for an authenticated user's path:
+
+```text
+receipts/{userId}/{jobId}.{jpg|png|webp}
+```
+
+This route is part of the frontend upload implementation and should normally
+not be called manually.
+
+### `POST /receipts/blob`
+
+Finalizes a direct Blob upload:
+
+```json
+{
+  "job_id": "9c098337-c779-4ea1-8e1e-510e15ace33e",
+  "pathname": "receipts/1/9c098337-c779-4ea1-8e1e-510e15ace33e.png",
+  "original_name": "receipt.png"
+}
+```
+
+Next.js verifies ownership and validates the actual private Blob bytes before
+creating the receipt.
+
+### `GET /receipts/{receipt}`
+
+Polls status and returns the analysis when ready.
+
+### `POST /receipts/{receipt}/retry`
+
+Requeues an owned `failed` receipt.
+
+### `POST /receipts/{receipt}/confirm`
 
 ```json
 {
   "category_id": 1,
-  "name": "Music",
-  "amount": 980,
-  "billing_cycle": "monthly",
-  "billing_day": 25,
-  "started_at": "2026-07-01",
-  "memo": "personal plan"
+  "title": "サンプル食堂",
+  "amount": 3000,
+  "spent_at": "2026-07-16",
+  "memo": ""
 }
 ```
 
-Notes:
+Creates exactly one expense transactionally and changes the receipt to
+`confirmed`. A repeated confirmation returns the existing linked result.
 
-- `billing_cycle`は現在`monthly`のみ対応です。
-- `billing_day`は1から31です。
+### `DELETE /receipts/{receipt}`
 
-### GET /subscriptions/{subscription}
+Deletes the private image and receipt metadata. A linked expense remains a
+normal expense record.
 
-認証必須。ログインユーザー本人のサブスクだけ取得できます。
+## Internal FastAPI
 
-### PUT /subscriptions/{subscription}
+FastAPI is called only by Next.js and requires:
 
-認証必須。ログインユーザー本人のサブスクだけ更新できます。
-
-### PATCH /subscriptions/{subscription}/cancel
-
-認証必須。サブスクを解約状態にします。
-
-Request:
-
-```json
-{
-  "canceled_at": "2026-07-09"
-}
+```text
+X-Internal-Token: <AI_INTERNAL_API_TOKEN>
 ```
 
-`canceled_at`を省略した場合は当日の日付が入ります。
+Internal endpoints:
 
-### DELETE /subscriptions/{subscription}
-
-認証必須。ログインユーザー本人のサブスクだけ削除できます。
-
-## Dashboard
-
-### GET /dashboard
-
-認証必須。指定月の予算、支出、サブスク、残額、使用率などを返します。
-
-Query:
-
-```txt
-year=2026&month=7
+```text
+GET  /health
+POST /v1/receipts/analyze
+POST /v1/receipts/analyze-blob
+POST /v1/reports/analyze
 ```
 
-## Reports
-
-### GET /reports/categories
-
-認証必須。指定月のカテゴリ別支出レポートを返します。
-
-Query:
-
-```txt
-year=2026&month=7
-```
-
-### GET /reports/monthly
-
-認証必須。指定年の月別レポートを返します。
-
-Query:
-
-```txt
-year=2026
-```
-
-### GET /reports/insights
-
-認証必須。Laravelが指定月の予算、支出、前月比、カテゴリ比率、サブスク比率を計算し、FastAPIが日本語の要約、注目点、見直し案を返します。
-
-```txt
-year=2026&month=7
-```
-
-金額計算の正本はLaravelです。結果はユーザーIDと集計値のfingerprintで6時間キャッシュされ、支出データが変わると別の結果を生成します。外部APIの過剰利用を防ぐため、既定ではユーザーごとに1分10回までです。AI serviceが利用できない場合は503を返しますが、`/reports/categories`と`/reports/monthly`には影響しません。
+See [AI Service](ai-service.md) for its request and response contracts.

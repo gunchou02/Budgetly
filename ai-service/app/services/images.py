@@ -34,10 +34,25 @@ class ReceiptImagePreprocessor:
         expected_mime_type: str,
     ) -> ProcessedReceiptImage:
         supplied_mime_type = (upload.content_type or "").split(";", 1)[0].lower()
+        raw_image = await upload.read(self._settings.receipt_max_bytes + 1)
+
+        return self.process_bytes(
+            raw_image,
+            supplied_mime_type=supplied_mime_type,
+            expected_mime_type=expected_mime_type,
+        )
+
+    def process_bytes(
+        self,
+        raw_image: bytes,
+        *,
+        supplied_mime_type: str,
+        expected_mime_type: str,
+    ) -> ProcessedReceiptImage:
+        supplied_mime_type = supplied_mime_type.split(";", 1)[0].lower()
         if supplied_mime_type != expected_mime_type:
             raise InvalidReceiptImageError
 
-        raw_image = await upload.read(self._settings.receipt_max_bytes + 1)
         if not raw_image or len(raw_image) > self._settings.receipt_max_bytes:
             raise InvalidReceiptImageError
 

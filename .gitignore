@@ -17,6 +17,9 @@
 /frontend/*.tsbuildinfo
 /frontend/next-env.d.ts
 /frontend/.env
+/frontend/.env.local
+/frontend/.local-storage/
+/frontend/src/generated/prisma/
 /ai-service/.env
 /ai-service/.venv/
 /ai-service/.pytest_cache/

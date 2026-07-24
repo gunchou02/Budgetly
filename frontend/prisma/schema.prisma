@@ -1,0 +1,203 @@
+generator client {
+  provider     = "prisma-client"
+  output       = "../src/generated/prisma"
+  moduleFormat = "esm"
+}
+
+datasource db {
+  provider = "postgresql"
+}
+
+enum CategoryType {
+  expense
+  fixed
+}
+
+enum BillingCycle {
+  monthly
+}
+
+enum ReceiptStatus {
+  queued
+  processing
+  review_required
+  confirmed
+  failed
+}
+
+model User {
+  id              Int             @id @default(autoincrement())
+  name            String          @db.VarChar(255)
+  email           String          @unique @db.VarChar(255)
+  passwordHash    String          @map("password_hash") @db.VarChar(255)
+  emailVerifiedAt DateTime?       @map("email_verified_at")
+  createdAt       DateTime        @default(now()) @map("created_at")
+  updatedAt       DateTime        @updatedAt @map("updated_at")
+  sessions        Session[]
+  categories      Category[]
+  monthlyBudgets  MonthlyBudget[]
+  expenses        Expense[]
+  subscriptions   Subscription[]
+  receipts        Receipt[]
+  reportCaches    AiReportCache[]
+
+  @@map("users")
+}
+
+model Session {
+  id        String   @id @default(uuid()) @db.Uuid
+  userId    Int      @map("user_id")
+  tokenHash String   @unique @map("token_hash") @db.VarChar(64)
+  expiresAt DateTime @map("expires_at")
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId, expiresAt])
+  @@map("sessions")
+}
+
+model Category {
+  id            Int               @id @default(autoincrement())
+  userId        Int               @map("user_id")
+  name          String            @db.VarChar(50)
+  color         String            @db.VarChar(20)
+  icon          String?           @db.VarChar(50)
+  type          CategoryType      @default(expense)
+  sortOrder     Int               @default(0) @map("sort_order")
+  isDefault     Boolean           @default(false) @map("is_default")
+  createdAt     DateTime          @default(now()) @map("created_at")
+  updatedAt     DateTime          @updatedAt @map("updated_at")
+  user          User              @relation(fields: [userId], references: [id], onDelete: Cascade)
+  expenses      Expense[]
+  subscriptions Subscription[]
+  analyses      ReceiptAnalysis[]
+
+  @@unique([userId, name])
+  @@index([userId, type, sortOrder])
+  @@map("categories")
+}
+
+model MonthlyBudget {
+  id        Int      @id @default(autoincrement())
+  userId    Int      @map("user_id")
+  year      Int
+  month     Int
+  amount    Int
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, year, month])
+  @@index([year, month])
+  @@map("monthly_budgets")
+}
+
+model Expense {
+  id         Int      @id @default(autoincrement())
+  userId     Int      @map("user_id")
+  categoryId Int      @map("category_id")
+  title      String   @db.VarChar(100)
+  amount     Int
+  spentAt    DateTime @map("spent_at") @db.Date
+  memo       String?
+  createdAt  DateTime @default(now()) @map("created_at")
+  updatedAt  DateTime @updatedAt @map("updated_at")
+  user       User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  category   Category @relation(fields: [categoryId], references: [id], onDelete: Restrict)
+  receipt    Receipt?
+
+  @@index([userId, spentAt])
+  @@index([userId, categoryId])
+  @@map("expenses")
+}
+
+model Subscription {
+  id           Int          @id @default(autoincrement())
+  userId       Int          @map("user_id")
+  categoryId   Int          @map("category_id")
+  name         String       @db.VarChar(100)
+  amount       Int
+  billingCycle BillingCycle @default(monthly) @map("billing_cycle")
+  billingDay   Int          @map("billing_day")
+  startedAt    DateTime     @map("started_at") @db.Date
+  canceledAt   DateTime?    @map("canceled_at") @db.Date
+  memo         String?
+  createdAt    DateTime     @default(now()) @map("created_at")
+  updatedAt    DateTime     @updatedAt @map("updated_at")
+  user         User         @relation(fields: [userId], references: [id], onDelete: Cascade)
+  category     Category     @relation(fields: [categoryId], references: [id], onDelete: Restrict)
+
+  @@index([userId, canceledAt])
+  @@index([userId, billingDay])
+  @@map("subscriptions")
+}
+
+model Receipt {
+  id                  Int              @id @default(autoincrement())
+  userId              Int              @map("user_id")
+  expenseId           Int?             @unique @map("expense_id")
+  jobId               String           @unique @map("job_id") @db.Uuid
+  status              ReceiptStatus    @default(queued)
+  storageDisk         String           @map("storage_disk") @db.VarChar(50)
+  imagePath           String           @map("image_path") @db.VarChar(1000)
+  originalName        String           @map("original_name") @db.VarChar(255)
+  mimeType            String           @map("mime_type") @db.VarChar(50)
+  fileSize            Int              @map("file_size")
+  failureCode         String?          @map("failure_code") @db.VarChar(100)
+  failureMessage      String?          @map("failure_message") @db.VarChar(500)
+  processingStartedAt DateTime?        @map("processing_started_at")
+  analyzedAt          DateTime?        @map("analyzed_at")
+  confirmedAt         DateTime?        @map("confirmed_at")
+  createdAt           DateTime         @default(now()) @map("created_at")
+  updatedAt           DateTime         @updatedAt @map("updated_at")
+  user                User             @relation(fields: [userId], references: [id], onDelete: Cascade)
+  expense             Expense?         @relation(fields: [expenseId], references: [id], onDelete: SetNull)
+  analysis            ReceiptAnalysis?
+
+  @@index([userId, status, createdAt])
+  @@map("receipts")
+}
+
+model ReceiptAnalysis {
+  id                  Int       @id @default(autoincrement())
+  receiptId           Int       @unique @map("receipt_id")
+  suggestedCategoryId Int?      @map("suggested_category_id")
+  provider            String    @db.VarChar(100)
+  merchant            String?   @db.VarChar(255)
+  spentAt             DateTime? @map("spent_at") @db.Date
+  amount              Int?
+  confidence          Json
+  extractedText       String    @map("extracted_text")
+  createdAt           DateTime  @default(now()) @map("created_at")
+  updatedAt           DateTime  @updatedAt @map("updated_at")
+  receipt             Receipt   @relation(fields: [receiptId], references: [id], onDelete: Cascade)
+  suggestedCategory   Category? @relation(fields: [suggestedCategoryId], references: [id], onDelete: SetNull)
+
+  @@map("receipt_analyses")
+}
+
+model AiReportCache {
+  id          Int      @id @default(autoincrement())
+  userId      Int      @map("user_id")
+  fingerprint String   @db.VarChar(64)
+  payload     Json
+  expiresAt   DateTime @map("expires_at")
+  createdAt   DateTime @default(now()) @map("created_at")
+  updatedAt   DateTime @updatedAt @map("updated_at")
+  user        User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, fingerprint])
+  @@index([expiresAt])
+  @@map("ai_report_caches")
+}
+
+model RateLimitBucket {
+  key       String   @id @db.VarChar(191)
+  count     Int      @default(0)
+  resetAt   DateTime @map("reset_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+
+  @@index([resetAt])
+  @@map("rate_limit_buckets")
+}

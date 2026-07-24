@@ -2,24 +2,16 @@ import axios from "axios";
 import { AxiosError } from 'axios';
 
 const API_BASE_URL =
-  process.env.NEXT_PUBLIC_API_BASE_URL ?? "http://127.0.0.1:8080/api";
+  process.env.NEXT_PUBLIC_API_BASE_URL ?? '/api';
 
 export const apiClient = axios.create({
   baseURL: API_BASE_URL,
   timeout: 10000,
+  withCredentials: true,
   headers: {
     Accept: "application/json",
   },
 });
-
-export function setAuthToken(token: string | null) {
-  if (token) {
-    apiClient.defaults.headers.common.Authorization = `Bearer ${token}`;
-    return;
-  }
-
-  delete apiClient.defaults.headers.common.Authorization;
-}
 
 interface ApiErrorPayload {
   message?: string;
@@ -29,6 +21,10 @@ interface ApiErrorPayload {
 export function getApiErrorMessage(error: unknown) {
   const requestError = error as AxiosError<ApiErrorPayload>;
   const errors = requestError.response?.data?.errors;
+
+  if (requestError.response?.status === 413) {
+    return "画像サイズは5MB以下にしてください。";
+  }
 
   if (errors) {
     return Object.values(errors).flat().join("\n");

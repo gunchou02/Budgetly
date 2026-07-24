@@ -30,6 +30,18 @@ class ReceiptUploadRequest extends FormRequest
         ];
     }
 
+    public function messages(): array
+    {
+        return [
+            'image.required' => 'レシート画像を選択してください。',
+            'image.uploaded' => '画像をアップロードできませんでした。5MB以下の画像を選択してください。',
+            'image.image' => 'JPEG、PNG、WebP画像を選択してください。',
+            'image.max' => '画像サイズは5MB以下にしてください。',
+            'image.mimetypes' => 'JPEG、PNG、WebP画像を選択してください。',
+            'image.extensions' => 'JPEG、PNG、WebP画像を選択してください。',
+        ];
+    }
+
     public function after(): array
     {
         return [

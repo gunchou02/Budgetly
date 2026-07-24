@@ -1,133 +1,206 @@
 # AI Service
 
-BudgetlyのFastAPIサービスは、Laravelからだけ呼び出す内部分析サービスです。エンドユーザー認証、MySQLアクセス、支出の確定はLaravelが担当します。
-
-Phase 15では`fake` providerに加えてOpenAI Responses APIを利用する実providerを実装しています。ローカルの既定値は`fake`のままなので、API keyなしでも開発と自動テストを実行できます。
+`ai-service` is an internal FastAPI application for compute-heavy and
+AI-oriented work. Next.js remains responsible for authentication, ownership,
+database writes, and financial calculations.
 
 ## Responsibilities
 
-- レシート画像から加盟店、日付、金額、カテゴリ候補を抽出する契約
-- Laravelが計算した月次集計から日本語の要約、注目点、改善案を作る契約
-- provider固有処理をadapterの後ろに分離
-- request IDをレスポンスに返して障害調査を支援
+- validate and normalize receipt images
+- call a fake or OpenAI receipt extraction provider
+- return structured merchant, date, amount, category, confidence, and OCR text
+- turn pre-calculated monthly facts into structured Japanese insights
+- expose stable, typed contracts independent of the selected provider
 
-FastAPIは予算残高やカテゴリ合計を計算しません。金額計算と保存の正本はLaravelです。
+FastAPI does not connect to the Budgetly product database and is not called
+directly by the browser.
+
+## Authentication
+
+Analysis routes require:
+
+```text
+X-Internal-Token: <AI_INTERNAL_API_TOKEN>
+```
+
+The same long random value must be configured in Next.js and FastAPI. The local
+development value is not allowed when `AI_ENVIRONMENT` is neither `local` nor
+`test`.
 
 ## Endpoints
 
-```txt
-GET  /health
-GET  /ready
-POST /v1/receipts/analyze
-POST /v1/reports/analyze
-```
+| Method | Path | Auth | Purpose |
+| --- | --- | --- | --- |
+| `GET` | `/health` | No | Process health |
+| `GET` | `/ready` | No | Provider readiness |
+| `POST` | `/v1/receipts/analyze` | Internal token | Receipt extraction |
+| `POST` | `/v1/receipts/analyze-blob` | Internal token | Private Blob extraction |
+| `POST` | `/v1/reports/analyze` | Internal token | Spending insight generation |
 
-`/health`と`/ready`以外は以下のヘッダーが必要です。
-
-```http
-X-Internal-Token: local-ai-secret
-```
-
-ルート`.env`と`ai-service/.env`の開発用トークンは、ステージング・本番環境で必ずsecret managerの値に置き換えます。
+FastAPI also exposes OpenAPI documentation at `/docs` in normal development.
 
 ## Receipt Contract
 
-```bash
-curl -X POST http://127.0.0.1:8000/v1/receipts/analyze \
-  -H 'X-Internal-Token: local-ai-secret' \
-  -F 'payload={
-    "job_id": "8e8782da-f3e9-4d32-a46e-45761843a849",
-    "image_key": "receipts/user-1/sample.jpg",
-    "mime_type": "image/jpeg",
-    "language": "ja",
-    "category_candidates": [
-      {"id": 1, "name": "住居費"},
-      {"id": 2, "name": "食費"}
-    ]
-  }' \
-  -F 'image=@receipt.jpg;type=image/jpeg'
+The request is `multipart/form-data`:
+
+- `image`: JPEG, PNG, or WebP file
+- `payload`: JSON string
+
+```json
+{
+  "job_id": "9c098337-c779-4ea1-8e1e-510e15ace33e",
+  "image_key": "receipts/1/example.png",
+  "mime_type": "image/png",
+  "language": "ja",
+  "category_candidates": [
+    {
+      "id": 1,
+      "name": "食費"
+    }
+  ]
+}
 ```
 
-Laravel workerは所有権を確認済みの非公開ファイルをread streamでmultipart送信します。FastAPIは`image_key`から任意のパスを読みません。受信画像は5 MB、4,000万pixel、JPEG/PNG/WebPの実形式を再検証し、EXIF方向補正、白背景合成、最大2,048pxへの縮小、軽いコントラスト・鮮明化を適用してJPEGに正規化します。
+Response:
+
+```json
+{
+  "provider": "fake",
+  "merchant": "サンプルストア",
+  "spent_at": "2026-07-24",
+  "amount": 1280,
+  "suggested_category_id": 1,
+  "confidence": {
+    "merchant": 0.94,
+    "spent_at": 0.93,
+    "amount": 0.96,
+    "category": 0.9,
+    "overall": 0.93
+  },
+  "extracted_text": "..."
+}
+```
+
+The service verifies the declared MIME type against decoded image content,
+limits input bytes and pixels, applies EXIF orientation, and resizes large
+images before provider use.
+
+In production, Next.js calls `/v1/receipts/analyze-blob` with the same payload
+as JSON. `image_key` must exactly match:
+
+```text
+receipts/{numeric-user-id}/{job-id}.{jpg|png|webp}
+```
+
+FastAPI uses the official Vercel Python SDK and `BLOB_READ_WRITE_TOKEN` to
+read that private object directly. The same Blob store must be connected to
+both Vercel projects. This avoids forwarding image bytes through a second
+Vercel Function request.
 
 ## Spending Report Contract
 
-Laravelが予算、支出合計、前月比、カテゴリ比率、サブスク比率を計算してからFastAPIへ渡します。
+Next.js sends deterministic facts:
 
-```bash
-curl -X POST http://127.0.0.1:8000/v1/reports/analyze \
-  -H 'Content-Type: application/json' \
-  -H 'X-Internal-Token: local-ai-secret' \
-  -d '{
-    "period": "2026-07",
-    "currency": "JPY",
-    "budget_amount": 200000,
-    "total_spent": 126000,
-    "remaining_amount": 74000,
-    "usage_rate": 63.0,
-    "previous_month_total": 114000,
-    "month_over_month_rate": 10.5,
-    "subscription_total": 12000,
-    "subscription_rate": 9.5,
-    "categories": [
-      {"name": "食費", "amount": 52000, "percentage": 41.3, "month_over_month_rate": 12.0}
-    ]
-  }'
+```json
+{
+  "period": "2026-07",
+  "currency": "JPY",
+  "budget_amount": 100000,
+  "total_spent": 52700,
+  "remaining_amount": 47300,
+  "usage_rate": 52.7,
+  "previous_month_total": 48100,
+  "month_over_month_rate": 9.56,
+  "subscription_total": 4500,
+  "subscription_rate": 8.54,
+  "categories": [
+    {
+      "name": "食費",
+      "amount": 18000,
+      "percentage": 34.16,
+      "month_over_month_rate": 12.5
+    }
+  ]
+}
 ```
 
-fake providerも「最も支出が多いカテゴリ」「予算消化率」「前月比」「サブスク比率」を日本語で返すため、実AI導入前にLaravel・Next.js連携を安定させられます。
+FastAPI returns:
 
-Laravelの`GET /api/reports/insights?year=2026&month=7`がこの契約を呼び出します。入力値のfingerprintごとに結果をキャッシュするため、同じ集計で画面を再表示してもproviderを繰り返し呼びません。AIが停止しても既存のカテゴリ・月別レポートAPIは独立して動作します。
+```json
+{
+  "provider": "fake",
+  "period": "2026-07",
+  "summary": "今月の支出状況...",
+  "highlights": [
+    {
+      "type": "top_category",
+      "title": "食費が最大",
+      "description": "今月の支出で食費の割合が最も高いです。",
+      "severity": "info"
+    }
+  ],
+  "recommendations": [
+    "外食回数を週単位で確認しましょう。"
+  ]
+}
+```
 
-## OpenAI Provider
+The language model explains values supplied by Next.js; it does not recalculate
+or write money.
 
-ルート`.env`でproviderとkeyを設定し、AI serviceを再作成します。
+## Providers
+
+```dotenv
+AI_RECEIPT_PROVIDER=fake
+AI_REPORT_PROVIDER=fake
+```
+
+The fake providers are deterministic, free, and suitable for UI and integration
+tests. Their receipt result is synthetic and will not match the uploaded image.
+
+For real extraction and generated reports:
 
 ```dotenv
 AI_RECEIPT_PROVIDER=openai
 AI_REPORT_PROVIDER=openai
+AI_OPENAI_API_KEY=your-key
 AI_OPENAI_MODEL=gpt-4o-mini
-OPENAI_API_KEY=your-secret-key
+AI_OPENAI_TIMEOUT_SECONDS=20
+AI_OPENAI_MAX_RETRIES=0
 ```
 
-```bash
-docker compose up -d --build ai-service
-docker compose restart worker
-```
-
-画像はbase64 data URLとしてResponses APIへ渡し、文字認識のため`detail: high`を使用します。抽出結果はPydantic structured outputで制限し、providerが返したcategory IDをFastAPIとLaravelの両方で再確認します。API keyとOCR全文はログに残さず、`store: false`でリクエストします。
-
-- [OpenAI image input guide](https://developers.openai.com/api/docs/guides/images-vision)
-- [OpenAI structured outputs guide](https://developers.openai.com/api/docs/guides/structured-outputs)
+OpenAI usage is billable. Enable either provider independently to control cost.
+The app should keep editable receipt confirmation even when confidence is high.
 
 ## Local Verification
 
 ```bash
-cd ai-service
-cp .env.example .env
-python3 -m venv .venv
-.venv/bin/pip install -r requirements-dev.txt
-.venv/bin/ruff check .
-.venv/bin/pytest
-```
-
-Dockerでは以下を使用します。
-
-```bash
-docker compose up -d --build ai-service
+docker compose up -d ai-service
 docker compose exec ai-service ruff check .
 docker compose exec ai-service pytest
+curl http://127.0.0.1:8000/health
+curl http://127.0.0.1:8000/ready
 ```
 
-## OCR Quality Evaluation
+The test suite covers authentication, validation, image preprocessing, fake
+providers, OpenAI structured requests, timeout mapping, and safe errors.
 
-実レシート画像には個人情報が含まれるためGitへ追加しません。匿名化したコンビニ、スーパー、飲食店レシートを`ai-service/evaluation/images/`へ置き、example manifestをコピーして期待値を入力します。
+## Vercel
 
-```bash
-cd ai-service
-cp evaluation/manifest.example.json evaluation/manifest.local.json
-AI_INTERNAL_API_TOKEN=local-ai-secret \
-  .venv/bin/python scripts/evaluate_receipts.py evaluation/manifest.local.json
+Create a separate Vercel project with root directory `ai-service`.
+`ai-service/vercel.json` configures `app/main.py` with a 60-second maximum
+duration.
+
+Required production variables:
+
+```dotenv
+AI_ENVIRONMENT=production
+AI_INTERNAL_API_TOKEN=<same-secret-as-frontend>
+BLOB_READ_WRITE_TOKEN=<token-for-the-same-private-blob-store>
+AI_RECEIPT_PROVIDER=openai
+AI_REPORT_PROVIDER=openai
+AI_OPENAI_API_KEY=<secret>
+AI_OPENAI_MODEL=gpt-4o-mini
 ```
 
-評価コマンドはmerchant、date、amount、categoryの完全一致率だけを表示し、OCR全文は出力しません。provider/model変更時は同じ非公開fixtureでbaselineを再測定します。金額または日付のconfidenceが低い結果も必ず`review_required`となり、ユーザー確認なしに支出へ変換されません。
+Set the resulting deployment URL as `AI_SERVICE_URL` in the frontend project.

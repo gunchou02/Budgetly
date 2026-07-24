@@ -38,7 +38,7 @@ Preserve Japanese text in merchant and extracted_text. Keep extracted_text conci
 
 _REPORT_INSTRUCTIONS = """
 You write a concise Japanese monthly spending report for a household budgeting application.
-All financial values are calculated by Laravel and are the only source of truth.
+All financial values are calculated by Budgetly and are the only source of truth.
 Do not recalculate, alter, or invent amounts, rates, categories, or comparisons.
 Explain the supplied facts in natural Japanese, identify useful patterns,
 and provide practical advice.
@@ -157,7 +157,7 @@ class OpenAISpendingReportAnalyzer:
                     "content": [
                         {
                             "type": "input_text",
-                            "text": f"Laravel-calculated report data:\n{report_data}",
+                            "text": f"Budgetly-calculated report data:\n{report_data}",
                         }
                     ],
                 },

@@ -1,283 +1,182 @@
 # Database Documentation
 
-Budgetlyはユーザー別の家計データを扱うため、主要テーブルは`user_id`でログインユーザーに紐づきます。
+Budgetly uses PostgreSQL through Prisma. The schema is defined in
+`frontend/prisma/schema.prisma`, and production changes must be made through
+committed Prisma migrations.
 
-## users
+## Environments
 
-認証ユーザーを管理します。
+| Environment | Database |
+| --- | --- |
+| Local Docker | PostgreSQL 17 |
+| Production | Neon PostgreSQL |
+| Legacy comparison | MySQL 8.4 |
 
-Main columns:
+`DATABASE_URL` is used by the running application. `DIRECT_URL` is available
+for migration tooling when a provider gives separate pooled and direct
+connections.
 
-```txt
-id
-name
-email
-email_verified_at
-password
-remember_token
-created_at
-updated_at
-```
+## Models
 
-Constraints:
+### `users`
+
+Stores the user profile and bcrypt password hash.
+
+Important constraints:
 
 - `email` is unique.
+- Deleting a user cascades to sessions and user-owned finance data.
 
-## categories
+### `sessions`
 
-支出・固定費カテゴリを管理します。
+Stores server-side login sessions.
 
-Main columns:
+- The raw cookie token is never stored.
+- `token_hash` contains a unique SHA-256 digest.
+- `expires_at` is checked on every authenticated request.
+- Sessions are deleted when their user is deleted.
 
-```txt
-id
-user_id
-name
-color
-icon
-type
-sort_order
-is_default
-created_at
-updated_at
+### `categories`
+
+Stores user-owned Japanese expense and fixed-cost categories.
+
+- `(user_id, name)` is unique.
+- `type` is `expense` or `fixed`.
+- New accounts receive the configured default category set.
+- `sort_order` controls display order.
+
+### `monthly_budgets`
+
+Stores one JPY budget per user and month.
+
+- `(user_id, year, month)` is unique.
+- `year` is limited to 2000 through 2100.
+- `month` is limited to 1 through 12.
+- `amount` is a non-negative integer.
+
+### `expenses`
+
+Stores individual spending records.
+
+- `amount` is a positive JPY integer.
+- `spent_at` is a PostgreSQL `date`.
+- The selected category must belong to the same user.
+- Indexes support monthly and category report queries.
+- A receipt-confirmed expense can have one linked receipt.
+
+### `subscriptions`
+
+Stores recurring monthly costs.
+
+- The supported billing cycle is currently `monthly`.
+- `billing_day` is limited to 1 through 31.
+- `started_at` and optional `canceled_at` define active months.
+- Dashboard totals calculate the actual day within short months.
+
+### `receipts`
+
+Stores the receipt processing state and private storage metadata.
+
+Status values:
+
+```text
+queued
+processing
+review_required
+confirmed
+failed
 ```
 
-Notes:
+Important constraints:
 
-- `user_id`はnullableですが、アプリ利用時は登録ユーザーごとにカテゴリを作成します。
-- `type`は`expense`または`fixed`です。
-- `sort_order`で表示順を制御します。
-- 新規登録時に`config/budgetly.php`の初期カテゴリをユーザー別にコピーします。
+- `job_id` is unique for idempotent upload finalization.
+- `expense_id` is unique so one receipt cannot create multiple expenses.
+- `file_size` must be positive and no larger than 5 MB.
+- User, status, and creation time are indexed for polling and management.
 
-Indexes:
+### `receipt_analyses`
 
-```txt
-user_id, sort_order
-```
+Stores one structured FastAPI result per receipt.
 
-## monthly_budgets
+- merchant, date, amount, extracted text, and provider
+- JSON confidence values for editable fields
+- optional user-owned suggested category
+- deleted automatically with its receipt
 
-月間予算を管理します。
+### `ai_report_caches`
 
-Main columns:
+Stores validated AI insight payloads.
 
-```txt
-id
-user_id
-year
-month
-amount
-created_at
-updated_at
-```
+- `(user_id, fingerprint)` is unique.
+- `expires_at` supports time-based invalidation.
+- Fingerprints change when the underlying monthly report input changes.
 
-Constraints:
+### `rate_limit_buckets`
 
-```txt
-unique(user_id, year, month)
-```
+Stores fixed-window counters for receipt upload and AI report routes.
 
-Notes:
-
-- 同じユーザーが同じ年月の予算を重複登録できない設計です。
-- `amount`はJPYのintegerです。
-
-## expenses
-
-通常支出を管理します。
-
-Main columns:
-
-```txt
-id
-user_id
-category_id
-title
-amount
-spent_at
-memo
-created_at
-updated_at
-```
-
-Relations:
-
-- `user_id` references `users.id`.
-- `category_id` references `categories.id`.
-
-Indexes:
-
-```txt
-user_id, spent_at
-user_id, category_id
-```
-
-Notes:
-
-- `amount`はJPYのintegerです。
-- APIではログインユーザー本人のカテゴリだけ指定できます。
-
-## receipts
-
-非公開レシート画像のメタデータと処理状態を管理します。
-
-Main columns:
-
-```txt
-id
-user_id
-expense_id
-job_id
-status
-storage_disk
-image_path
-original_name
-mime_type
-file_size
-failure_code
-failure_message
-processing_started_at
-analyzed_at
-confirmed_at
-created_at
-updated_at
-```
-
-Constraints:
-
-- `job_id` is unique.
-- `expense_id` is nullable and unique.
-- `user_id` deletion cascades to receipts.
-- `expense_id` deletion sets the reference to null.
-
-Notes:
-
-- `storage_disk`と`image_path`はAPIレスポンスから非表示にします。
-- `status`は`queued`, `processing`, `review_required`, `confirmed`, `failed`です。
-- 同じレシートから作成できる支出は最大1件です。
-
-## receipt_analyses
-
-OCR・AIが提案した値を、確定済み支出とは分離して保存します。
-
-Main columns:
-
-```txt
-id
-receipt_id
-suggested_category_id
-provider
-merchant
-spent_at
-amount
-confidence
-extracted_text
-created_at
-updated_at
-```
-
-Constraints:
-
-- `receipt_id` is unique.
-- Receipt deletion cascades to its analysis.
-- Category deletion sets `suggested_category_id` to null.
-
-Notes:
-
-- `confidence`はフィールド別信頼度をJSONで保存します。
-- 分析値から支出を自動作成せず、ユーザーが確認APIを実行した場合だけ`expenses`へ保存します。
-
-## failed_jobs
-
-Laravel queueが再試行上限に達したjobを保存します。Redis自体はqueue transportであり、レシート処理の業務状態は`receipts.status`を正本とします。
-
-Main columns:
-
-```txt
-id
-uuid
-connection
-queue
-payload
-exception
-failed_at
-```
-
-Constraints:
-
-- `uuid` is unique.
-
-Notes:
-
-- レシートjob payloadには`receipt_id`だけを持たせ、画像本文や内部API tokenを含めません。
-- ユーザー向けの安全な失敗理由は`receipts.failure_code`と`failure_message`に保存します。
-
-## subscriptions
-
-月額サブスクを管理します。
-
-Main columns:
-
-```txt
-id
-user_id
-category_id
-name
-amount
-billing_cycle
-billing_day
-started_at
-canceled_at
-memo
-created_at
-updated_at
-```
-
-Relations:
-
-- `user_id` references `users.id`.
-- `category_id` references `categories.id`.
-
-Indexes:
-
-```txt
-user_id, canceled_at
-user_id, billing_day
-```
-
-Notes:
-
-- `billing_cycle`は現在`monthly`のみ対応です。
-- `canceled_at`がnullなら有効なサブスクとして扱います。
-
-## personal_access_tokens
-
-Laravel SanctumのPersonal Access Tokenを保存します。
-
-Main role:
-
-```txt
-API token authentication
-```
+- `key` is the primary key.
+- PostgreSQL upsert logic increments counters atomically.
+- `reset_at` defines the current window.
 
 ## Data Isolation
 
-実務上重要なポイントは、他ユーザーのデータを読めない・更新できないことです。
+Database foreign keys prevent dangling records, but authorization is enforced
+in application queries:
 
-Budgetlyでは、次のAPIでログインユーザー条件を必ず含めます。
-
-```txt
-categories.user_id
-monthly_budgets.user_id
-expenses.user_id
-subscriptions.user_id
-receipts.user_id
+```ts
+await db.expense.findFirst({
+  where: {
+    id: expenseId,
+    userId: authenticatedUser.id,
+  },
+});
 ```
 
-例えば予算更新では、URLの`budget` IDだけでは更新せず、ログインユーザーの`monthlyBudgets()`リレーションから検索します。
+The same rule applies to categories, budgets, subscriptions, receipts, and
+report inputs. A foreign user's ID is returned as `404`, not as a distinguishable
+authorization error.
 
-```txt
-request user -> monthlyBudgets -> whereKey(budget id)
+## Migrations
+
+```bash
+# Create a development migration after changing schema.prisma
+cd frontend
+npm run db:migrate
+
+# Apply committed migrations in Docker or production
+npm run db:deploy
+
+# Show migration status
+npm run db:status
+
+# Load optional demo data
+BUDGETLY_SEED_DEMO=true npm run db:seed
 ```
 
-これにより、別ユーザーのIDを直接指定しても404になります。
+Do not use `prisma db push` for production schema changes. It bypasses the
+reviewable migration history.
+
+## Resetting Local PostgreSQL
+
+This deletes local PostgreSQL data:
+
+```bash
+docker compose down
+docker volume rm budgetly_postgres-data
+docker compose up -d
+```
+
+The exact volume prefix can differ by Compose project name. Confirm it with
+`docker volume ls` before deleting anything.
+
+## Legacy Data
+
+The new PostgreSQL schema does not automatically import legacy MySQL data.
+Before removing MySQL:
+
+1. decide whether the existing data is disposable test data or must be kept;
+2. export and transform any required records;
+3. validate row counts, ownership, totals, dates, and unique constraints;
+4. keep a backup and rollback window;
+5. remove legacy services only after acceptance.

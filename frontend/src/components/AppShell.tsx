@@ -4,6 +4,7 @@ import Link from 'next/link';
 import { usePathname, useRouter } from 'next/navigation';
 import { ChartPie, CreditCard, LayoutDashboard, LogOut, WalletCards } from 'lucide-react';
 import { useAuth } from '@/auth/AuthContext';
+import BrandMark from '@/components/BrandMark';
 import type { ReactNode } from 'react';
 
 const navigation = [
@@ -27,7 +28,7 @@ export default function AppShell({ children }: { children: ReactNode }) {
     <div className="app-shell">
       <aside className="sidebar">
         <div className="brand">
-          <span className="brand-mark">B</span>
+          <BrandMark priority />
           <div>
             <strong>Budgetly</strong>
           </div>

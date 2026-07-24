@@ -21,6 +21,12 @@ class InvalidReceiptImageError(ServiceError):
     public_message = "The receipt image is invalid or unsupported."
 
 
+class ReceiptSourceUnavailableError(ServiceError):
+    status_code = 503
+    code = "receipt_source_unavailable"
+    public_message = "The receipt image source is temporarily unavailable."
+
+
 class ProviderUnavailableError(ServiceError):
     status_code = 503
     code = "provider_unavailable"

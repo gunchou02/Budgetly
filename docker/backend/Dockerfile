@@ -21,6 +21,7 @@ RUN set -eux; \
     apk del .build-deps
 
 COPY --from=composer:2 /usr/bin/composer /usr/bin/composer
+COPY uploads.ini /usr/local/etc/php/conf.d/99-budgetly-uploads.ini
 COPY entrypoint.sh /usr/local/bin/budgetly-entrypoint
 
 RUN chmod +x /usr/local/bin/budgetly-entrypoint

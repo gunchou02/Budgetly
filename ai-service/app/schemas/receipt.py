@@ -2,7 +2,7 @@ from datetime import date
 from typing import Literal
 from uuid import UUID
 
-from pydantic import Field, PositiveInt
+from pydantic import Field, PositiveInt, model_validator
 
 from app.schemas.common import ApiModel
 
@@ -18,6 +18,27 @@ class ReceiptAnalysisRequest(ApiModel):
     mime_type: Literal["image/jpeg", "image/png", "image/webp"]
     language: Literal["ja"] = "ja"
     category_candidates: list[CategoryCandidate] = Field(min_length=1, max_length=100)
+
+
+class BlobReceiptAnalysisRequest(ReceiptAnalysisRequest):
+    @model_validator(mode="after")
+    def validate_private_blob_path(self) -> BlobReceiptAnalysisRequest:
+        extension = {
+            "image/jpeg": "jpg",
+            "image/png": "png",
+            "image/webp": "webp",
+        }[self.mime_type]
+        parts = self.image_key.split("/")
+        expected_path = (
+            f"receipts/{parts[1]}/{self.job_id}.{extension}"
+            if len(parts) == 3 and parts[1].isdigit()
+            else ""
+        )
+
+        if self.image_key != expected_path:
+            raise ValueError("image_key must be a scoped receipt Blob pathname")
+
+        return self
 
 
 class ReceiptConfidence(ApiModel):

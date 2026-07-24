@@ -5,6 +5,7 @@ import { useRouter } from 'next/navigation';
 import { useEffect, useState, type ChangeEvent, type FormEvent } from 'react';
 import { getApiErrorMessage } from '@/api/client';
 import { useAuth } from '@/auth/AuthContext';
+import BrandMark from '@/components/BrandMark';
 
 interface AuthPageProps {
   mode: 'login' | 'register';
@@ -74,7 +75,7 @@ export default function AuthPage({ mode }: AuthPageProps) {
     <main className="auth-page">
       <section className="auth-panel">
         <div>
-          <span className="brand-mark">B</span>
+          <BrandMark priority />
           <p className="eyebrow">Budgetly</p>
           <h1>{isRegister ? 'アカウント作成' : 'ログイン'}</h1>
         </div>

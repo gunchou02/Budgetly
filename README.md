@@ -1,242 +1,190 @@
 # Budgetly
 
-Budgetlyは、20〜30代向けの月間生活費・支出・サブスク管理サービスです。
+Budgetly is a Japanese-language personal finance application for monthly
+budgets, expenses, subscriptions, receipt OCR, dashboards, and AI spending
+insights.
 
-毎月の生活費予算を設定し、通常支出とサブスク費用をまとめて管理できます。予算に対して今月いくら使ったのか、あといくら使えるのか、または何円オーバーしているのかを見える化します。
+The primary application is now a Next.js full-stack service backed by
+PostgreSQL. FastAPI handles compute-heavy and AI-oriented work such as receipt
+image analysis and natural-language reports.
 
-## Main Features
+## Current Stack
 
-- ユーザー登録・ログイン
-- ユーザー別の初期カテゴリ作成
-- 月間生活費予算の登録・編集
-- 支出の登録・編集・削除
-- レシート画像のアップロード・AI分析・確認後の支出確定API
-- サブスクの登録・編集・解約・削除
-- ダッシュボードでの月次集計
-- カテゴリ別・月別レポートとAI支出インサイト
-- Next.jsフロントエンドからのAPI連携
+| Area | Technology | Responsibility |
+| --- | --- | --- |
+| Web and main API | Next.js 16, TypeScript | UI, routing, auth, CRUD, ownership, reports |
+| Styling | Tailwind CSS | Existing responsive product UI |
+| Data access | Prisma 7 | Schema, migrations, typed PostgreSQL queries |
+| Database | PostgreSQL 17 / Neon | Product data, sessions, cache, rate limits |
+| Heavy processing | Python, FastAPI | OCR, image preprocessing, OpenAI calls |
+| Receipt storage | Local filesystem / Vercel Blob | Private receipt images |
+| Background work | Next.js `after` / Vercel Queues | Receipt analysis dispatch |
+| Deployment | Docker, Vercel, Neon | Local development and production hosting |
 
-## Tech Stack
+Laravel, MySQL, and Redis remain in Docker temporarily as the legacy
+implementation. New product work should target the Next.js API and PostgreSQL.
 
-### Frontend
+## Service Boundary
 
-- Next.js 16
-- React 19
-- TypeScript
-- Tailwind CSS
-- Axios
-- Recharts
-- lucide-react
+Next.js owns:
 
-### Backend
+- registration, login, logout, and server-side sessions
+- user ownership and authorization
+- categories, budgets, expenses, and subscriptions
+- deterministic dashboard and report calculations
+- receipt metadata, confirmation, storage, and retry state
+- AI request rate limiting and result caching
 
-- Laravel 12
-- PHP 8.3+
-- Laravel Sanctum
-- MySQL
-- Form Request Validation
-- Service Layer
-- PHPUnit
+FastAPI owns:
 
-### AI Service
+- receipt image normalization and OCR/vision analysis
+- OpenAI provider calls and structured-output validation
+- natural-language monthly spending insights
+- other CPU-heavy or AI-heavy APIs added later
 
-- Python 3.14
-- FastAPI
-- Pydantic
-- OpenAI Responses API
-- Pillow
-- Pytest
-- Ruff
-
-### Infrastructure
-
-- Docker Compose
-- Nginx
-- MySQL 8.4
-- Redis 7.4
-- Laravel queue worker
+FastAPI is not exposed directly to the browser. Next.js authenticates the user,
+loads only that user's data, and calls FastAPI with an internal service token.
 
 ## Directory Structure
 
-```txt
+```text
 Budgetly/
-├── backend/              # Laravel API
-├── frontend/             # Next.js + TypeScript app
-├── ai-service/           # Internal FastAPI analysis service
-├── docker/               # Docker settings
-├── docs/                 # API, DB, QA, roadmap docs
-├── docker-compose.yml
-└── README.md
+├── frontend/              # Primary Next.js web application and API
+│   ├── prisma/            # PostgreSQL schema and migrations
+│   ├── src/app/api/       # Route Handlers
+│   ├── src/server/        # Auth, reports, storage, queues, AI client
+│   └── tests/             # Unit and integration tests
+├── ai-service/            # FastAPI OCR and AI service
+├── backend/               # Legacy Laravel API
+├── docker/                # Legacy PHP and Nginx development images
+├── docs/                  # Architecture, API, deployment, and QA docs
+└── docker-compose.yml
 ```
 
 ## Local Development
 
-### Docker
+Docker is the supported way to run the complete local environment.
 
 ```bash
 cp .env.example .env
-docker compose up -d
+docker compose up -d --build
 ```
 
-Docker Desktop must be running before using Docker Compose.
-On the first start, Composer and npm dependencies are installed automatically, then the application key, database migrations, and seed data are prepared.
+The frontend container runs `prisma migrate deploy` before starting Next.js, so
+a new PostgreSQL volume is initialized automatically.
 
-Default URLs:
+| Service | URL |
+| --- | --- |
+| Budgetly app and primary API | http://127.0.0.1:5173 |
+| Primary API health | http://127.0.0.1:5173/api/health |
+| FastAPI health | http://127.0.0.1:8000/health |
+| Legacy Laravel API | http://127.0.0.1:8080/api/health |
 
-```txt
-Frontend: http://127.0.0.1:5173
-API:      http://127.0.0.1:8080/api
-AI API:   http://127.0.0.1:8000
+The default local AI providers are deterministic fakes and do not incur API
+costs. To test OpenAI, configure these values in the root `.env`:
+
+```dotenv
+AI_RECEIPT_PROVIDER=openai
+AI_REPORT_PROVIDER=openai
+OPENAI_API_KEY=your-key
+AI_OPENAI_MODEL=gpt-4o-mini
 ```
 
-Check container status and initialization logs:
+Then recreate the AI service:
 
 ```bash
-docker compose ps
-docker compose logs -f backend
-docker compose logs -f worker
+docker compose up -d --build ai-service
 ```
 
-Run Laravel commands inside the backend container:
+## Main Commands
 
 ```bash
-docker compose exec backend php artisan migrate:status
-docker compose exec backend composer test
+# Follow application logs
+docker compose logs -f frontend ai-service postgres
+
+# Next.js lint, tests, and production build
+docker compose run --rm --no-deps frontend npm run lint
+docker compose run --rm --no-deps frontend npm run test:run
+docker compose run --rm --no-deps frontend npm run build
+
+# Full API integration flow against the running frontend
+docker compose run --rm --no-deps \
+  -e BUDGETLY_INTEGRATION_BASE_URL=http://frontend:5173 \
+  frontend npm run test:integration
+
+# FastAPI checks
+docker compose exec ai-service ruff check .
+docker compose exec ai-service pytest
+
+# PostgreSQL migration status
+docker compose exec frontend npm run db:status
 ```
 
-To change the host ports or local database credentials, edit the root `.env` file before starting the containers. See [Docker Development](docs/docker.md) for the full setup and troubleshooting guide.
+## Authentication and Security
 
-### Backend without Docker
+- The browser receives a random session token in an `HttpOnly` cookie.
+- Only a SHA-256 hash of that token is stored in PostgreSQL.
+- The cookie is `SameSite=Lax` and `Secure` in production.
+- Every product query includes the authenticated user's ID.
+- Cross-user object access returns `404`.
+- Receipt uploads are restricted by MIME signature, size, and pixel count.
+- FastAPI endpoints require `AI_INTERNAL_API_TOKEN`.
+- AI report and receipt upload routes have database-backed rate limits.
 
-```bash
-cd backend
-composer install
-cp .env.example .env
-php artisan key:generate
-php artisan migrate --seed
-php artisan serve --host=127.0.0.1 --port=8081
+## Receipt Upload Modes
+
+Local development uses a normal multipart request to Next.js:
+
+```dotenv
+NEXT_PUBLIC_RECEIPT_UPLOAD_MODE=server
+RECEIPT_STORAGE_DRIVER=local
+BUDGETLY_QUEUE_DRIVER=inline
 ```
 
-レシート分析も実行する場合はRedisを起動し、別ターミナルでworkerを実行します。
+Production uses a browser-to-Vercel-Blob upload and then finalizes the upload
+through an authenticated Next.js route. This avoids the Vercel Function request
+body limit:
 
-```bash
-php artisan queue:work redis --queue=receipts --timeout=30
+```dotenv
+NEXT_PUBLIC_RECEIPT_UPLOAD_MODE=blob
+RECEIPT_STORAGE_DRIVER=vercel-blob
+BUDGETLY_QUEUE_DRIVER=inline
 ```
 
-### Frontend
+Mobile browsers can open the rear camera because the receipt input uses
+`capture="environment"`. Desktop browsers normally show a file picker.
 
-```bash
-cd frontend
-npm install
-npm run dev
-```
+## Deployment
 
-The frontend uses this API URL by default:
+The practical production layout uses two Vercel projects from this repository:
 
-```txt
-http://127.0.0.1:8080/api
-```
+1. Project root `frontend` for the Next.js application and API.
+2. Project root `ai-service` for FastAPI.
 
-When using `php artisan serve --port=8081` instead of Docker nginx, set this in `frontend/.env`:
+Connect Neon PostgreSQL to the frontend project. Connect the same private
+Vercel Blob store to both projects so FastAPI can read receipt images without
+passing them through a Function request body. Set `AI_SERVICE_URL` to the
+FastAPI deployment URL and configure the same `AI_INTERNAL_API_TOKEN` in both
+projects.
 
-```txt
-NEXT_PUBLIC_API_BASE_URL=http://127.0.0.1:8081/api
-```
+See [Vercel Deployment](docs/vercel.md) for the complete environment and
+deployment checklist.
 
-Default frontend URL:
+## Documentation
 
-```txt
-http://127.0.0.1:5173
-```
-
-## Verification
-
-API health check:
-
-```bash
-curl http://127.0.0.1:8080/api/health
-```
-
-Expected response:
-
-```json
-{
-  "status": "ok",
-  "service": "Budgetly API",
-  "locale": "ja",
-  "timezone": "Asia/Tokyo"
-}
-```
-
-Backend tests:
-
-```bash
-cd backend
-composer test
-```
-
-Frontend production build:
-
-```bash
-cd frontend
-npm run typecheck
-npm run lint
-npm run build
-```
-
-AI service checks:
-
-```bash
-cd ai-service
-cp .env.example .env
-python3 -m venv .venv
-.venv/bin/pip install -r requirements-dev.txt
-.venv/bin/ruff check .
-.venv/bin/pytest
-```
-
-実OpenAI providerは任意です。既定の`fake` providerではkeyも外部通信も不要です。実providerの設定とレシート品質評価手順は[AI Service](docs/ai-service.md)を参照してください。
-
-## Documents
-
-- [API Documentation](docs/api.md)
-- [Database Documentation](docs/database.md)
-- [Docker Development](docs/docker.md)
+- [Architecture](docs/architecture.md)
+- [API](docs/api.md)
+- [Database](docs/database.md)
+- [Docker](docs/docker.md)
 - [AI Service](docs/ai-service.md)
-- [Target Architecture](docs/architecture.md)
-- [Stack Migration Plan](docs/migration-plan.md)
+- [Vercel Deployment](docs/vercel.md)
 - [QA Checklist](docs/qa-checklist.md)
 - [Roadmap](docs/roadmap.md)
+- [Migration Status](docs/migration-plan.md)
 
-## Budget Calculation
+## Data Migration Note
 
-```txt
-total_spent = expense_total + subscription_total
-remaining = monthly_budget - total_spent
-usage_rate = total_spent / monthly_budget * 100
-```
-
-Example:
-
-```txt
-月間予算: ¥40,000
-通常支出: ¥38,000
-サブスク: ¥12,000
-合計支出: ¥50,000
-残り: -¥10,000
-状態: 予算オーバー
-```
-
-## Implementation Notes
-
-- 金額はJPY前提でintegerとして保存します。
-- タイムゾーンはAsia/Tokyoを使用します。
-- API内部のstatus値は英語、UI表示は日本語にします。
-- 認証はLaravel SanctumのPersonal Access Token方式です。
-- 認証が必要なAPIは`auth:sanctum`で保護します。
-- ユーザー別データは`user_id`条件で分離します。
-- レシート原本は公開ディレクトリではなく非公開ストレージへ保存します。
-- レシート分析はRedis queueで非同期実行し、MySQLの状態を正本として再試行できます。
-- AIが提案した支出はユーザー確認後にだけ支出として確定します。
-- FastAPIは内部サービスとして扱い、ブラウザから業務データを直接送信しません。
-- AIの説明文はLaravelが計算した集計値を入力として生成し、金額計算の正本はLaravelに保ちます。
+The new PostgreSQL database starts independently from the legacy MySQL
+database. Existing local test data is not copied automatically. Keep the legacy
+containers and MySQL volume until any required production data has been
+exported and validated.

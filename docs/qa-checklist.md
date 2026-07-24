@@ -1,104 +1,140 @@
 # QA Checklist
 
-Budgetlyの手動確認リストです。リリース前、または大きな変更後に確認します。
+## Automated Gates
 
-## Backend
+### Next.js
 
-- [ ] `GET /api/health`が200を返す。
-- [ ] `php artisan route:list`でAPIルートが表示される。
-- [ ] `composer test`が成功する。
-- [ ] `php artisan migrate:fresh --seed`が成功する。
+```bash
+docker compose run --rm --no-deps frontend npm run lint
+docker compose run --rm --no-deps frontend npm run test:run
+docker compose run --rm --no-deps frontend npm run build
+```
 
-## Auth
+Expected:
 
-- [ ] 新規登録が成功し、APIトークンが返る。
-- [ ] 新規登録時にユーザー別の初期カテゴリが作成される。
-- [ ] 重複メールアドレスで登録すると失敗する。
-- [ ] 正しいメールアドレス・パスワードでログインできる。
-- [ ] 間違ったパスワードでログインできない。
-- [ ] トークンなしで`/api/me`にアクセスすると失敗する。
-- [ ] トークンありで`/api/me`にアクセスできる。
-- [ ] ログアウト後、同じトークンで保護APIにアクセスできない。
+- ESLint succeeds.
+- Unit tests cover date calculations, reports, validation, and image rules.
+- The production build has no missing environment or dynamic file-path warning.
 
-## Categories
+### API Integration
 
-- [ ] `GET /api/categories`でログインユーザーのカテゴリだけ取得できる。
-- [ ] `type=expense`で通常支出カテゴリだけ取得できる。
-- [ ] `type=fixed`で固定費カテゴリだけ取得できる。
-- [ ] カテゴリ作成時、同じユーザー内で重複名が拒否される。
+```bash
+docker compose run --rm --no-deps \
+  -e BUDGETLY_INTEGRATION_BASE_URL=http://frontend:5173 \
+  frontend npm run test:integration
+```
 
-## Monthly Budgets
+Expected flow:
 
-- [ ] 月間予算を登録できる。
-- [ ] 同じ年月の予算を重複登録できない。
-- [ ] 指定年月の予算を取得できる。
-- [ ] 月間予算を更新できる。
-- [ ] 他ユーザーの予算IDを指定して更新できない。
+- unauthenticated `/api/me` returns `401`;
+- registration sets an `HttpOnly` session;
+- 19 default Japanese categories are created;
+- duplicate monthly budget returns `422`;
+- expense and subscription totals match the dashboard;
+- fake AI report returns a structured response;
+- another user's budget ID returns `404`;
+- receipt upload reaches `review_required`;
+- confirmation creates one linked expense.
 
-## Expenses
+### FastAPI
 
-- [ ] 支出を登録できる。
-- [ ] 支出一覧を年月で絞り込める。
-- [ ] 支出一覧をカテゴリで絞り込める。
-- [ ] 支出詳細を取得できる。
-- [ ] 支出を更新できる。
-- [ ] 支出を削除できる。
-- [ ] 他ユーザーの支出IDを指定して取得・更新・削除できない。
-- [ ] 他ユーザーのカテゴリIDでは支出を登録できない。
+```bash
+docker compose exec ai-service ruff check .
+docker compose exec ai-service pytest
+```
 
-## Subscriptions
+Expected:
 
-- [ ] サブスクを登録できる。
-- [ ] 有効サブスクだけ取得できる。
-- [ ] 解約済みサブスクだけ取得できる。
-- [ ] サブスクを更新できる。
-- [ ] サブスクを解約できる。
-- [ ] サブスクを削除できる。
-- [ ] 他ユーザーのサブスクIDを指定して取得・更新・削除できない。
-- [ ] 他ユーザーのカテゴリIDではサブスクを登録できない。
+- internal token enforcement works;
+- malformed images and payloads are rejected safely;
+- fake and OpenAI provider contracts pass;
+- timeout and provider errors are mapped to stable responses.
 
-## Receipts
+### Legacy Regression
 
-- [ ] JPEG、PNG、WebPのレシート画像をアップロードできる。
-- [ ] 未対応形式、5 MB超過、過大な解像度の画像が拒否される。
-- [ ] 保存パスがAPIレスポンスに含まれない。
-- [ ] アップロード直後は`queued`で、支出が自動作成されない。
-- [ ] worker処理中は`processing`、完了後は`review_required`になる。
-- [ ] 一時的なFastAPI障害ではbackoff付きで再試行される。
-- [ ] 再試行上限後は`failed`になり、所有者だけがretry APIを実行できる。
-- [ ] worker停止中も予算・支出・サブスクAPIが利用できる。
-- [ ] 同じjobが重複配信されても分析結果と支出が重複しない。
-- [ ] 他ユーザーのレシートを取得・確定・削除できない。
-- [ ] `review_required`以外のレシートを確定できない。
-- [ ] 確定時にユーザー本人のカテゴリだけ指定できる。
-- [ ] 同じレシートを再確定しても支出が重複しない。
-- [ ] レシート削除時に原本と分析結果が削除される。
-- [ ] 確定済みレシートを削除しても支出は残る。
+```bash
+docker compose exec backend vendor/bin/phpunit
+```
 
-## Dashboard and Reports
+Run this while Laravel remains in the repository. It protects the rollback
+implementation from accidental breakage.
 
-- [ ] `GET /api/dashboard?year=2026&month=7`で月次サマリーを取得できる。
-- [ ] 通常支出とサブスク金額が合計支出に反映される。
-- [ ] 予算残額と使用率が表示される。
-- [ ] `GET /api/reports/categories?year=2026&month=7`でカテゴリ別レポートを取得できる。
-- [ ] `GET /api/reports/monthly?year=2026`で月別レポートを取得できる。
+## Manual Auth
 
-## Frontend
+- Register with a new email.
+- Confirm the response cookie is `HttpOnly`.
+- Reload and confirm `/api/me` restores the session.
+- Log out and confirm protected routes return `401`.
+- Attempt duplicate registration and an incorrect password.
+- Confirm the old `budgetly_token` localStorage key is removed.
 
-- [ ] `npm run build`が成功する。
-- [ ] ログイン前は認証画面が表示される。
-- [ ] ログイン後にダッシュボードへ遷移する。
-- [ ] 予算画面で登録・更新できる。
-- [ ] ダッシュボードでクイック支出登録ができる。
-- [ ] ダッシュボードでカレンダー表示が崩れない。
-- [ ] サブスク画面で登録・更新・解約・削除ができる。
-- [ ] 分析画面でグラフが表示される。
-- [ ] 金額入力UIが主要画面で統一されている。
-- [ ] PC幅とスマホ幅で主要画面が破綻しない。
+## Manual Ownership
 
-## Regression
+Use two accounts:
 
-- [ ] 既存の`/api/health`レスポンスが変わっていない。
-- [ ] 金額はすべてJPY integerとして扱われる。
-- [ ] 日付は`YYYY-MM-DD`形式で扱われる。
-- [ ] UI表示文言は日本語で統一されている。
+- Account A creates a budget, expense, subscription, and receipt.
+- Account B requests each Account A ID.
+- Read, update, retry, confirm, and delete operations must return `404`.
+- Account B reports must not include Account A amounts.
+
+## Manual Finance
+
+- Create, read, update, and delete expenses.
+- Filter expenses by year, month, and category.
+- Create and update one monthly budget.
+- Verify a duplicate year/month budget is rejected.
+- Create, update, cancel, and delete a subscription.
+- Check billing day 29, 30, and 31 in short months.
+- Check subscription start and cancellation month boundaries.
+- Confirm negative, decimal, and oversized amounts are rejected.
+
+## Manual Receipt
+
+- Upload valid JPEG, PNG, and WebP files.
+- Reject non-images renamed with an image extension.
+- Reject files over 5 MB.
+- Verify the selected image preview is not distorted.
+- Poll through `queued` and `processing`.
+- Review merchant, date, amount, category, and extracted text.
+- Edit incorrect OCR values before confirmation.
+- Confirm twice and verify only one expense exists.
+- Force FastAPI unavailable, verify `failed`, then retry.
+- Delete a receipt and confirm its private image is removed.
+
+On a real mobile device:
+
+- open the receipt picker;
+- confirm the rear-camera option is offered;
+- take a photo;
+- confirm upload, preview, review, and expense creation work.
+
+## Manual Reports
+
+- Compare dashboard totals with raw expenses and active subscriptions.
+- Verify a missing budget is represented consistently.
+- Verify 12 annual report entries.
+- Verify category percentages and zero-spend months.
+- Call insights repeatedly and confirm caching/rate limiting.
+- Verify a FastAPI failure does not alter deterministic money totals.
+
+## UI Regression
+
+- Keep the current desktop navigation unchanged.
+- Keep the current mobile bottom navigation unchanged.
+- Keep amount-entry formatting and behavior unchanged.
+- Check 390 px mobile, tablet, and desktop widths.
+- Confirm no labels, buttons, dialogs, or receipt previews overlap.
+- Check loading, empty, validation, failed, and retry states.
+- Confirm there are no browser console errors.
+
+## Production Smoke Test
+
+- `/api/health` and FastAPI `/ready` succeed.
+- Neon migrations are current.
+- registration and cookie persistence work on the production domain.
+- private Blob objects cannot be fetched publicly.
+- direct Blob receipt upload succeeds.
+- FastAPI can read the same private Blob without a large multipart request.
+- FastAPI accepts requests only with the internal token.
+- logs do not contain passwords, session tokens, Blob tokens, or full receipt
+  content.

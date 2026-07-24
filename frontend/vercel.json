@@ -1,0 +1,12 @@
+{
+  "functions": {
+    "src/app/api/queue/receipts/route.ts": {
+      "experimentalTriggers": [
+        {
+          "type": "queue/v2beta",
+          "topic": "budgetly-receipts"
+        }
+      ]
+    }
+  }
+}

@@ -49,14 +49,8 @@ a {
 }
 
 .brand-mark {
-  display: grid;
-  width: 40px;
-  height: 40px;
-  place-items: center;
-  border-radius: 8px;
-  background: #111827;
-  color: #ffffff;
-  font-weight: 700;
+  display: block;
+  flex: 0 0 auto;
 }
 
 .brand strong,
@@ -483,6 +477,227 @@ a {
   gap: 12px;
 }
 
+.entry-mode-control {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 3px;
+  margin-bottom: 16px;
+  border: 1px solid #d1d5db;
+  border-radius: 8px;
+  background: #f3f4f6;
+  padding: 3px;
+}
+
+.entry-mode-control button {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 7px;
+  min-height: 38px;
+  border: 0;
+  border-radius: 6px;
+  background: transparent;
+  color: #6b7280;
+  font: inherit;
+  font-weight: 700;
+  cursor: pointer;
+}
+
+.entry-mode-control button.active {
+  background: #ffffff;
+  color: #111827;
+  box-shadow: 0 1px 2px rgb(17 24 39 / 10%);
+}
+
+.receipt-flow {
+  display: grid;
+  gap: 14px;
+}
+
+.receipt-file-picker {
+  display: grid;
+  min-height: 116px;
+  place-items: center;
+  align-content: center;
+  gap: 8px;
+  border: 1px dashed #9ca3af;
+  border-radius: 8px;
+  background: #f9fafb;
+  color: #374151;
+  cursor: pointer;
+}
+
+.receipt-file-picker:hover {
+  border-color: #4b5563;
+  background: #f3f4f6;
+}
+
+.receipt-file-picker:focus-visible {
+  border-color: #2563eb;
+  outline: 2px solid #bfdbfe;
+  outline-offset: 2px;
+}
+
+.receipt-file-picker input {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  overflow: hidden;
+  clip: rect(0, 0, 0, 0);
+  clip-path: inset(50%);
+  white-space: nowrap;
+}
+
+.receipt-file-preview,
+.receipt-state-view,
+.receipt-review-form,
+.receipt-confirmed {
+  display: grid;
+  gap: 14px;
+}
+
+.receipt-file-preview img,
+.receipt-state-preview {
+  width: 100%;
+  max-height: 220px;
+  border: 1px solid #e5e7eb;
+  border-radius: 6px;
+  background: #f9fafb;
+  object-fit: contain;
+}
+
+.receipt-file-meta {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 8px;
+  color: #4b5563;
+}
+
+.receipt-file-meta span {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.receipt-file-meta small {
+  color: #6b7280;
+}
+
+.receipt-processing,
+.receipt-failure {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr);
+  align-items: center;
+  gap: 12px;
+  min-height: 70px;
+  border-radius: 8px;
+  background: #eff6ff;
+  padding: 14px;
+  color: #1d4ed8;
+}
+
+.receipt-processing div,
+.receipt-failure div {
+  display: grid;
+  gap: 3px;
+}
+
+.receipt-processing span,
+.receipt-failure span {
+  color: #4b5563;
+  font-size: 13px;
+}
+
+.receipt-failure {
+  background: #fef2f2;
+  color: #b91c1c;
+}
+
+.receipt-review-heading {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  border-bottom: 1px solid #e5e7eb;
+  padding-bottom: 12px;
+}
+
+.receipt-review-heading > div {
+  display: grid;
+  gap: 3px;
+}
+
+.receipt-review-heading span {
+  color: #6b7280;
+  font-size: 12px;
+}
+
+.receipt-confidence {
+  flex: 0 0 auto;
+  border-radius: 999px;
+  background: #dcfce7;
+  padding: 6px 9px;
+  color: #166534 !important;
+  font-weight: 700;
+}
+
+.receipt-confidence.low {
+  background: #fef3c7;
+  color: #92400e !important;
+}
+
+.receipt-ocr-details {
+  border-top: 1px solid #e5e7eb;
+  padding-top: 10px;
+  color: #4b5563;
+  font-size: 13px;
+}
+
+.receipt-ocr-details summary {
+  cursor: pointer;
+  font-weight: 700;
+}
+
+.receipt-ocr-details pre {
+  max-height: 160px;
+  overflow: auto;
+  margin: 10px 0 0;
+  border-radius: 6px;
+  background: #f9fafb;
+  padding: 10px;
+  color: #374151;
+  font: inherit;
+  line-height: 1.6;
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+}
+
+.receipt-confirmed {
+  justify-items: center;
+  padding: 20px 0 4px;
+  color: #15803d;
+  text-align: center;
+}
+
+.receipt-confirmed span {
+  color: #4b5563;
+}
+
+.spin {
+  animation: spin 0.9s linear infinite;
+}
+
+.is-hidden {
+  display: none !important;
+}
+
+@keyframes spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
 .daily-expense-list {
   display: grid;
   gap: 10px;
@@ -694,6 +909,11 @@ select {
   padding: 0 14px;
   font-weight: 700;
   cursor: pointer;
+}
+
+button:disabled {
+  cursor: not-allowed;
+  opacity: 0.55;
 }
 
 .primary-button {

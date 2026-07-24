@@ -1,160 +1,159 @@
 # Target Architecture
 
-BudgetlyのMVP機能を維持しながら、フロントエンドの型安全性とAI機能を追加するための目標アーキテクチャです。
+## Overview
 
-## Technology Stack
+Budgetly uses Next.js as the product boundary and FastAPI as an internal
+compute service.
 
-| Area | Technology | Responsibility |
-|---|---|---|
-| Frontend | Next.js, TypeScript | UI, routing, form state, API response typing |
-| Styling | Tailwind CSS | Design tokens, responsive layout, component styling |
-| Main API | Laravel | Authentication, authorization, CRUD, business rules |
-| AI API | Python, FastAPI | OCR, receipt parsing, category suggestions, spending explanations |
-| Database | MySQL 8.4 | Users, budgets, expenses, subscriptions, receipt metadata |
-| Cache and Queue | Redis | AI job queue, job status cache, temporary data |
-| Infrastructure | Docker, AWS, GitHub Actions | Local development, deployment, CI/CD |
+```mermaid
+flowchart LR
+    Browser["Browser / Mobile Camera"]
+    Next["Next.js Web + Route Handlers"]
+    Postgres["Neon PostgreSQL"]
+    Blob["Private Vercel Blob"]
+    Queue["Next after() / Vercel Queue"]
+    Python["FastAPI"]
+    OpenAI["OpenAI API"]
 
-MySQL remains the system database. A PostgreSQL migration is not planned.
-
-## Service Boundaries
-
-```txt
-Browser
-  |
-  v
-Next.js frontend
-  |
-  v
-Laravel API --------------------> MySQL
-  |
-  +--------> Redis queue
-                 |
-                 v
-         Laravel queue worker
-                 |
-                 +-------------> FastAPI ----> OCR / AI provider
-                 |
-                 +-------------> MySQL
+    Browser -->|HttpOnly session cookie| Next
+    Browser -->|Production receipt bytes| Blob
+    Next --> Postgres
+    Next --> Blob
+    Next --> Queue
+    Queue --> Next
+    Next -->|Internal token| Python
+    Python -->|Private Blob token| Blob
+    Python --> OpenAI
 ```
 
-The browser communicates only with Laravel for application data. FastAPI is an internal service and is not exposed as a public user API.
+## Responsibilities
 
 ### Next.js
 
-- Preserves the current routes and navigation structure.
-- Renders the Japanese user interface.
-- Validates forms for usability, while Laravel remains the source of validation truth.
-- Uses shared TypeScript types for Laravel API responses.
-- Displays OCR progress and requires user confirmation before expense creation.
+Next.js is the only browser-facing application API.
 
-### Laravel
+- authenticates users and manages session cookies
+- validates request payloads with Zod
+- enforces user ownership for every record
+- performs categories, budgets, expenses, and subscriptions CRUD
+- calculates dashboard and deterministic reports
+- owns receipt status, storage metadata, retries, and confirmation
+- caches AI reports and applies rate limits
+- sends bounded, user-scoped payloads to FastAPI
 
-- Owns authentication and user authorization.
-- Owns all writes to MySQL.
-- Validates uploaded file metadata before creating an OCR job.
-- Checks that receipt, category, and expense records belong to the authenticated user.
-- Converts confirmed receipt analysis into an expense in one database transaction.
-- Handles AI timeout, retry, and failure states without breaking existing CRUD features.
-- Uses its own queue worker to consume Redis jobs, call FastAPI, and persist results.
+The user's financial data must never be queried by FastAPI directly. This keeps
+authorization in one place and reduces the blast radius of the AI service.
 
 ### FastAPI
 
-- Receives only the image reference and a generated job identifier from trusted internal services.
-- Extracts merchant name, purchase date, total amount, and receipt text.
-- Returns structured analysis with confidence values.
-- Converts Laravel-calculated monthly aggregates into Japanese summaries and recommendations.
-- Does not authenticate end users and does not write directly to MySQL.
-- Keeps OCR providers behind an adapter so the provider can be changed later.
+FastAPI handles work that benefits from Python libraries or external AI models.
 
-FastAPI does not recalculate balances, usage rates, or category totals. Laravel remains responsible for exact financial calculations, and FastAPI only explains the validated aggregate values it receives.
+- image normalization and safety checks
+- receipt OCR or multimodal extraction
+- structured merchant, date, amount, and confidence output
+- natural-language monthly spending insights
+- future CPU-heavy analysis or batch processing
 
-### MySQL
+FastAPI endpoints require `X-Internal-Token`. The service returns typed JSON;
+Next.js validates that response before storing or returning it.
 
-- Remains the single source of truth for service data.
-- Stores confirmed expense data and receipt analysis metadata.
-- Does not store large original image binaries.
+### PostgreSQL and Prisma
 
-### Redis
+PostgreSQL is the source of truth for:
 
-- Is introduced first for OCR jobs and short-lived job state.
-- Is not required for normal budget, expense, subscription, or report APIs.
-- Must be treated as disposable storage; durable state remains in MySQL.
+- users and hashed sessions
+- finance records
+- receipt processing state and extracted results
+- AI report cache entries
+- fixed-window rate-limit buckets
 
-## Receipt OCR Flow
+Prisma migrations are committed under `frontend/prisma/migrations`. Local
+Docker uses PostgreSQL 17 and production uses Neon PostgreSQL.
 
-```txt
-1. User uploads a receipt image.
-2. Laravel validates ownership, MIME type, extension, and size.
-3. Laravel stores the image and creates a receipt record with `queued` status.
-4. Laravel sends an OCR job to Redis.
-5. A Laravel queue worker consumes the job and calls FastAPI over the private Docker network.
-6. The worker streams the private image as multipart data; FastAPI validates and normalizes it.
-7. FastAPI sends only the normalized image to the configured provider and validates structured output.
-8. The Laravel worker stores the analysis and changes the status to `review_required`.
-9. The user reviews and edits the suggested values.
-10. Laravel creates the expense and changes the receipt status to `confirmed`.
-```
+### Storage and Queues
 
-Planned receipt states:
+Receipt images are private.
 
-```txt
-queued -> processing -> review_required -> confirmed
-                    \-> failed
-```
+- Local: `.local-storage/receipts` in the frontend container volume.
+- Production: private Vercel Blob paths scoped to `receipts/{userId}/{jobId}`.
 
-Suggested analysis contract:
+The default queue driver is `inline`, which schedules processing with Next.js
+`after()` after the response has been committed. `BUDGETLY_QUEUE_DRIVER=vercel`
+enables the `budgetly-receipts` Vercel Queue for durable retries.
 
-```json
-{
-  "merchant": "セブン-イレブン",
-  "spent_at": "2026-07-13",
-  "amount": 1280,
-  "suggested_category_id": 3,
-  "confidence": {
-    "merchant": 0.96,
-    "spent_at": 0.91,
-    "amount": 0.98,
-    "category": 0.84
-  }
-}
-```
+## Authentication Flow
 
-AI output is never saved directly as a confirmed expense. User confirmation is mandatory.
+1. The browser posts credentials to `/api/register` or `/api/login`.
+2. Next.js verifies the password with bcrypt.
+3. Next.js creates a cryptographically random token.
+4. Only its SHA-256 hash is inserted into `sessions`.
+5. The raw token is returned only as an `HttpOnly` cookie.
+6. Protected routes hash the cookie and load a non-expired session.
+7. Logout deletes the database session and expires the cookie.
 
-## Laravel API Surface
+Legacy Sanctum bearer tokens are not used by the Next.js application.
 
-```txt
-POST /api/receipts
-GET  /api/receipts/{receipt}
-POST /api/receipts/{receipt}/retry
-POST /api/receipts/{receipt}/confirm
-DELETE /api/receipts/{receipt}
-```
+## Receipt Flow
 
-All endpoints use `auth:sanctum` and user-scoped queries.
+### Local
 
-## Image Storage
+1. The browser sends multipart form data to `POST /api/receipts`.
+2. Next.js validates the real image signature, size, and dimensions.
+3. The image is stored on the local private volume.
+4. A `queued` receipt row is created.
+5. `after()` calls the FastAPI receipt endpoint.
+6. The result is stored as `review_required`.
+7. The user edits or confirms the result.
+8. Confirmation creates one expense transactionally and marks the receipt
+   `confirmed`.
 
-- Local development: Docker-managed local storage.
-- AWS: private S3 bucket with short-lived signed access.
-- MySQL stores only object keys, metadata, status, and analysis results.
-- Original images have a configurable retention period and can be deleted by the owner.
+### Production
+
+1. The browser requests a scoped client-upload token from
+   `/api/receipts/blob-upload`.
+2. The browser uploads directly to private Vercel Blob.
+3. The browser calls `/api/receipts/blob` with the Blob path and job ID.
+4. Next.js verifies ownership, downloads the private object, and validates its
+   actual bytes.
+5. Processing continues through the configured queue driver.
+6. Next.js sends only the scoped Blob pathname and analysis metadata to
+   FastAPI.
+7. FastAPI reads the private Blob directly, preprocesses it, and calls the
+   configured provider.
+
+The `job_id` and database uniqueness constraints make upload finalization and
+receipt confirmation idempotent. Direct Python-to-Blob reads avoid Vercel
+Function request-body limits for the Next.js-to-FastAPI call.
+
+## AI Report Flow
+
+1. Next.js loads the authenticated user's monthly totals.
+2. A deterministic fingerprint is generated from the report input.
+3. A valid cached result is returned when available.
+4. Otherwise, the rate limiter is consumed and FastAPI is called.
+5. FastAPI returns a structured Japanese report.
+6. Next.js validates and caches the payload with an expiration time.
+
+All amount calculations remain in Next.js. The language model explains the
+calculated facts and does not become the source of truth for money.
 
 ## Security and Reliability
 
-- Accept only explicitly supported image formats and verify the actual MIME type.
-- Apply upload size, pixel count, and request rate limits.
-- Never trust filenames or OCR-generated values.
-- Do not include receipt text, signed URLs, tokens, or personal data in application logs.
-- Use internal service credentials between Laravel and FastAPI.
-- Set connection and processing timeouts and limit retries.
-- Keep existing financial CRUD available when Redis or FastAPI is unavailable.
-- Record status transitions so failed jobs can be diagnosed and retried safely.
+- Passwords are bcrypt hashes.
+- Session cookies are `HttpOnly`, `SameSite=Lax`, and production `Secure`.
+- Object queries include `userId`; cross-user IDs return `404`.
+- Monetary values are positive JPY integers.
+- Database check and unique constraints protect core invariants.
+- Receipt formats are limited to JPEG, PNG, and WebP, up to 5 MB and 40 MP.
+- Blob upload tokens are authenticated, path-scoped, and single-job scoped.
+- FastAPI uses a shared internal token and strict response schemas.
+- Provider timeouts, retries, failed states, and manual retry endpoints are
+  explicit.
+- AI usage can run with deterministic fake providers without external cost.
 
-## Deliberate Non-Goals
+## Legacy Boundary
 
-- Replacing Laravel with FastAPI.
-- Migrating MySQL to PostgreSQL.
-- Allowing FastAPI to modify application tables.
-- Automatically confirming AI-generated expenses.
-- Redesigning the current navigation during the frontend migration.
+`backend`, MySQL, Redis, Nginx, and the PHP worker are retained temporarily for
+comparison and data safety. They are not part of the target production request
+path. Remove them only after any required MySQL data migration and rollback
+window are complete.

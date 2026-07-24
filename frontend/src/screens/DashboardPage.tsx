@@ -148,6 +148,18 @@ function DashboardPage() {
     }
   }
 
+  async function handleReceiptConfirmed(spentAt: string) {
+    const [year, month] = spentAt.split('-').map(Number);
+    setSelectedDate(spentAt);
+
+    if (year === filters.year && month === filters.month) {
+      await fetchDashboard();
+      return;
+    }
+
+    setFilters({ year, month });
+  }
+
   const reportCategories = categoryReport?.categories ?? [];
   const quickExpenseCategories = expenseCategories;
   const status = dashboard?.status ?? 'safe';
@@ -230,6 +242,7 @@ function DashboardPage() {
                 onCreate={createExpense}
                 onCreateRecurring={createRecurringExpense}
                 onUpdate={updateExpense}
+                onReceiptConfirmed={handleReceiptConfirmed}
                 editingExpense={editingExpense}
                 onClearEditing={() => setEditingExpense(null)}
               />

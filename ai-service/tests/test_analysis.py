@@ -3,6 +3,12 @@ from uuid import uuid4
 
 from fastapi.testclient import TestClient
 
+from app.main import app
+from app.services.blob_receipts import (
+    ReceiptBlob,
+    get_receipt_blob_reader,
+)
+
 
 def receipt_payload() -> dict[str, object]:
     return {
@@ -98,6 +104,49 @@ def test_fake_receipt_analysis(
     assert response.json()["amount"] == 1280
     assert response.json()["suggested_category_id"] == 2
     assert response.json()["confidence"]["overall"] == 0.94
+
+
+def test_fake_blob_receipt_analysis(
+    client: TestClient,
+    internal_headers: dict[str, str],
+    receipt_jpeg: bytes,
+) -> None:
+    payload = receipt_payload()
+    payload["image_key"] = f"receipts/1/{payload['job_id']}.jpg"
+
+    class StubReceiptBlobReader:
+        async def read(self, pathname: str) -> ReceiptBlob:
+            assert pathname == payload["image_key"]
+            return ReceiptBlob(data=receipt_jpeg, mime_type="image/jpeg")
+
+    app.dependency_overrides[get_receipt_blob_reader] = StubReceiptBlobReader
+
+    try:
+        response = client.post(
+            "/v1/receipts/analyze-blob",
+            headers=internal_headers,
+            json=payload,
+        )
+    finally:
+        app.dependency_overrides.pop(get_receipt_blob_reader, None)
+
+    assert response.status_code == 200
+    assert response.json()["provider"] == "fake"
+    assert response.json()["amount"] == 1280
+
+
+def test_blob_receipt_rejects_unscoped_path(
+    client: TestClient,
+    internal_headers: dict[str, str],
+) -> None:
+    response = client.post(
+        "/v1/receipts/analyze-blob",
+        headers=internal_headers,
+        json=receipt_payload(),
+    )
+
+    assert response.status_code == 422
+    assert response.json()["error"]["code"] == "validation_error"
 
 
 def test_receipt_rejects_mime_type_that_does_not_match_image(

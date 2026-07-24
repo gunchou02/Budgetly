@@ -1,162 +1,138 @@
-# Stack Migration Plan
+# Stack Migration Status
 
-The migration is incremental. Each phase must leave the existing Laravel and MySQL features testable before the next phase starts.
+## Decision
+
+Budgetly is moving from a split Next.js/Laravel application with MySQL to:
+
+```text
+Next.js full stack
++ Prisma
++ Neon PostgreSQL
++ FastAPI for heavy and AI workloads
++ Vercel Blob
++ optional Vercel Queues
++ Vercel deployment
+```
+
+The current navigation and amount-entry UX are preserved.
 
 ## Preserved Product Contract
 
-The following behavior must remain unchanged during the frontend migration:
+- Japanese interface and `Asia/Tokyo` date behavior
+- JPY integer amounts
+- user-scoped categories and monthly budgets
+- expense and subscription CRUD
+- dashboard and category/monthly reports
+- receipt upload, editable review, and one-time confirmation
+- AI monthly spending explanation
+- mobile camera-compatible receipt input
 
-- Routes: `/login`, `/register`, `/dashboard`, `/budgets`, `/subscriptions`, `/reports`
-- Navigation labels: `ホーム`, `予算`, `サブスク`, `分析`
-- Laravel API endpoints and validation rules
-- Sanctum Personal Access Token authentication during the initial migration
-- JPY integer amounts and `Asia/Tokyo` dates
-- User-scoped access control
-- Existing dashboard, budget, expense, subscription, and report behavior
+## Implemented
 
-## Phase 10: Architecture and Migration Design
+### PostgreSQL and Prisma
 
-Deliverables:
+- complete Prisma schema for all product domains
+- PostgreSQL check, foreign-key, index, and unique constraints
+- committed initial migrations
+- PostgreSQL 17 local Docker service
+- Neon-compatible runtime adapter
+- automatic `prisma migrate deploy` on local frontend startup
 
-- Target stack and service ownership documented.
-- MySQL retention decision documented.
-- Receipt OCR data flow and trust boundaries documented.
-- Frontend migration constraints and later phases documented.
+### Next.js Main API
 
-Completion criteria:
+- all browser-facing Laravel routes replaced by Route Handlers
+- Zod request validation
+- bcrypt password verification
+- hashed server-side sessions in an `HttpOnly` cookie
+- user ownership checks and cross-user `404` behavior
+- deterministic dashboard and report calculations
+- PostgreSQL-backed rate limiting and AI report caching
 
-- Every datastore has one clear owner.
-- The browser does not call FastAPI directly.
-- Existing features and navigation have explicit preservation rules.
-- AI failure cannot block ordinary financial CRUD.
+### Receipt Pipeline
 
-## Phase 11: Next.js, TypeScript, and Tailwind Migration
+- local multipart upload and private filesystem storage
+- production direct upload to private Vercel Blob
+- byte signature, MIME, size, and pixel validation
+- direct FastAPI reads from private Blob to avoid Function body limits
+- receipt status machine and retry behavior
+- default post-response processing with `after()`
+- optional Vercel Queue dispatch
+- transactionally idempotent expense confirmation
 
-Status: completed
+### FastAPI
 
-Approach:
+- fake and OpenAI receipt providers
+- fake and OpenAI report providers
+- receipt image preprocessing
+- internal token authentication
+- typed request and response schemas
+- Vercel Python function configuration
 
-1. Create a Next.js App Router project in the existing `frontend` boundary.
-2. Configure TypeScript strict mode and Tailwind design tokens.
-3. Port the shared shell without changing navigation labels or destinations.
-4. Port authentication and protected-route behavior.
-5. Port dashboard, budget, subscription, and report pages one at a time.
-6. Add typed API contracts and shared formatter utilities.
-7. Remove Vite and React Router only after route parity is verified.
+### Frontend
 
-Completion criteria:
+- same-origin `/api` client
+- cookie-based auth bootstrap
+- legacy localStorage token removal
+- existing navigation preserved
+- existing amount-entry behavior preserved
+- receipt image picker with rear-camera hint on supported mobile browsers
+- Vercel Blob upload mode for production
 
-- All current routes and workflows pass manual QA.
-- Production build and type checking pass.
-- No remaining runtime dependency on Vite or React Router.
-- Desktop and mobile layouts preserve the current navigation behavior.
+### Verification
 
-Rollback rule:
+- Next.js unit tests for date, report, validation, and image rules
+- full API integration test covering auth, ownership, CRUD, reports, and receipt
+  confirmation
+- FastAPI test suite
+- legacy Laravel regression suite retained during transition
+- desktop and mobile browser visual check
 
-- Do not delete the working Vite implementation until all page routes build and API smoke tests pass in the migration branch.
+## Remaining Before Production
 
-## Phase 12: FastAPI Foundation
+1. Create the Neon production database.
+2. Create separate Vercel projects for `frontend` and `ai-service`.
+3. Connect private Vercel Blob to the frontend.
+4. configure and verify production environment variables.
+5. Apply Prisma migrations to Neon.
+6. Run a production smoke test with fake providers.
+7. Enable OpenAI providers only after budget controls are configured.
+8. Decide whether legacy MySQL contains data that must be migrated.
+9. Add GitHub Actions checks before merging deployment changes.
+10. Observe logs and error rates, then remove legacy services after a rollback
+    window.
 
-Status: completed
+## Data Migration
 
-- Add an isolated `ai-service` directory.
-- Add health, readiness, structured error, and request ID handling.
-- Define Pydantic request and response models.
-- Add an OCR provider interface and deterministic fake implementation for tests.
-- Add a spending report interface that converts Laravel-calculated aggregates into Japanese explanations.
-- Add Docker service configuration as an internal application service with a development-only host port.
+This repository does not automatically copy MySQL records into PostgreSQL.
 
-Completion criteria:
+For disposable local data, start with an empty PostgreSQL database. For real
+data, build and rehearse a one-time importer that:
 
-- FastAPI unit tests pass without external AI credentials.
-- Laravel can reach the FastAPI health endpoint on the Docker network.
-- No FastAPI code reads or writes MySQL directly.
-- Protected analysis endpoints reject calls without the shared internal token.
+- preserves user IDs or maps all foreign keys explicitly;
+- rehashes or safely validates password compatibility;
+- converts dates in `Asia/Tokyo` without timestamp drift;
+- verifies per-user monthly totals before and after import;
+- does not import raw Sanctum tokens;
+- creates new server sessions only after users log in again.
 
-## Phase 13: Receipt Domain and Laravel Integration
+## Rollback Strategy
 
-Status: completed
+The legacy Laravel, MySQL, Redis, Nginx, and worker services remain in the
+repository and Compose file. Keep the MySQL volume untouched until:
 
-- Add receipt metadata and analysis migrations to Laravel.
-- Add user-scoped receipt upload, status, confirmation, and deletion APIs.
-- Store images locally in development through Laravel storage.
-- Convert confirmed analysis into an expense transactionally.
-- Add authorization, upload validation, and failure tests.
-
-Implementation notes:
-
-- Uploaded files enter the durable `queued` state; Phase 14 will dispatch them to Redis.
-- Original client filenames are metadata only. Storage keys use server-generated UUIDs.
-- The confirmation endpoint accepts user-reviewed values and is idempotent after the first successful transaction.
-- Deleting receipt metadata does not delete an already confirmed expense.
-
-Completion criteria:
-
-- A receipt cannot be read or confirmed by another user.
-- Invalid and oversized files are rejected.
-- Confirmation creates at most one expense.
-- AI output always requires user review.
-
-## Phase 14: Redis Queue
-
-- Add Redis to Docker Compose.
-- Add a Laravel queue worker that consumes OCR jobs and calls FastAPI.
-- Expose durable job status through Laravel.
-- Add retries with backoff and a terminal failed state.
-- Keep Redis optional for non-AI APIs.
-
-Completion criteria:
-
-- Duplicate delivery does not create duplicate expenses.
-- Worker restarts do not lose durable receipt state.
-- Existing financial APIs work while the worker is stopped.
-
-## Phase 15: OCR and AI Analysis
-
-- Implement receipt image preprocessing.
-- Integrate the selected Japanese OCR or multimodal provider.
-- Extract merchant, date, total, and confidence values.
-- Suggest only categories owned by the current user.
-- Add fixtures for common Japanese receipt formats.
-- Replace the fake spending report provider with a real AI provider while keeping calculations in Laravel.
-
-Completion criteria:
-
-- Provider secrets are supplied only through environment variables.
-- Low-confidence fields are clearly marked for review.
-- Provider timeout and malformed output are handled safely.
-- OCR quality is measured against a small documented test set.
-
-## Phase 16: Integrated Docker and QA
-
-- Run Next.js, Laravel, FastAPI, MySQL, Redis, Nginx, and workers together.
-- Add health checks and startup dependencies.
-- Verify upload, processing, review, and confirmation end to end.
-- Document local setup and troubleshooting.
-
-## Phase 17: GitHub Actions
-
-- Laravel test and formatting jobs.
-- Next.js lint, type-check, and production build jobs.
-- FastAPI lint and test jobs.
-- Docker build validation.
-- No deployment from unverified branches.
-
-## Phase 18: AWS Deployment
-
-- Select the final compute model after container resource measurements.
-- Use RDS MySQL for the database and ElastiCache Redis for queues.
-- Store private receipt images in S3.
-- Configure HTTPS, secrets, logs, backups, and migration execution.
-- Deploy only after the integrated Docker QA phase is stable.
+- PostgreSQL data validation passes;
+- the Vercel production flow is accepted;
+- receipt analysis and report generation are observed in production;
+- the agreed rollback period ends.
 
 ## Key Risks
 
 | Risk | Mitigation |
-|---|---|
-| Large frontend rewrite causes regressions | Port one route at a time and retain the working version until parity |
-| OCR returns incorrect financial data | Require user confirmation and show confidence per field |
-| AI service outage blocks the product | Keep AI asynchronous and isolate it from existing CRUD |
-| Receipt images expose personal data | Private storage, short-lived access, retention policy, redacted logs |
-| Queue retries duplicate records | Idempotency keys and transactional confirmation |
-| Too many technologies slow delivery | Introduce one infrastructure dependency per phase |
+| --- | --- |
+| Authorization regression | Central `requireUser` and `userId` filters, ownership tests |
+| Duplicate money records | PostgreSQL unique constraints and transactional receipt confirmation |
+| Function upload limit | Direct browser-to-Blob upload |
+| AI cost growth | Fake defaults, rate limits, cache, provider toggles |
+| AI hallucinated amounts | Deterministic calculations remain in Next.js |
+| Serverless background loss | Optional durable Vercel Queue |
+| Legacy data loss | Keep MySQL volume and use a rehearsed importer |

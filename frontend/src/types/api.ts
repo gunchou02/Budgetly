@@ -36,6 +36,54 @@ export interface ExpensePayload {
   memo: string;
 }
 
+export type ReceiptStatus = 'queued' | 'processing' | 'review_required' | 'confirmed' | 'failed';
+
+export interface ReceiptConfidence {
+  merchant: number;
+  spent_at: number;
+  amount: number;
+  category: number;
+  overall: number;
+}
+
+export interface ReceiptAnalysis {
+  id: number;
+  receipt_id: number;
+  suggested_category_id: number | null;
+  provider: string;
+  merchant: string | null;
+  spent_at: string | null;
+  amount: number | null;
+  confidence: ReceiptConfidence;
+  extracted_text: string;
+  suggested_category?: Category | null;
+}
+
+export interface Receipt {
+  id: number;
+  expense_id: number | null;
+  job_id: string;
+  status: ReceiptStatus;
+  original_name: string;
+  mime_type: string;
+  file_size: number;
+  failure_code: string | null;
+  failure_message: string | null;
+  processing_started_at: string | null;
+  analyzed_at: string | null;
+  confirmed_at: string | null;
+  analysis?: ReceiptAnalysis | null;
+  expense?: Expense | null;
+}
+
+export interface ReceiptConfirmationPayload {
+  category_id: number;
+  title: string;
+  amount: number;
+  spent_at: string;
+  memo: string;
+}
+
 export interface Subscription {
   id: number;
   category_id: number;
@@ -126,6 +174,5 @@ export interface SpendingInsight {
 }
 
 export interface AuthResponse {
-  token: string;
   user: User;
 }

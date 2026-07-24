@@ -1,10 +1,8 @@
 'use client';
 
 import { createContext, useContext, useEffect, useState, type ReactNode } from 'react';
-import { apiClient, setAuthToken } from '@/api/client';
+import { apiClient } from '@/api/client';
 import type { ApiEnvelope, AuthResponse, User } from '@/types/api';
-
-const TOKEN_STORAGE_KEY = 'budgetly_token';
 
 interface LoginPayload {
   email: string;
@@ -22,30 +20,19 @@ interface AuthContextValue {
   login: (payload: LoginPayload) => Promise<void>;
   logout: () => Promise<void>;
   register: (payload: RegisterPayload) => Promise<void>;
-  token: string | null;
   user: User | null;
 }
 
 const AuthContext = createContext<AuthContextValue | null>(null);
 
 export function AuthProvider({ children }: { children: ReactNode }) {
-  const [token, setToken] = useState<string | null>(null);
   const [user, setUser] = useState<User | null>(null);
   const [isBootstrapping, setIsBootstrapping] = useState(true);
 
   useEffect(() => {
     let isActive = true;
-    const storedToken = window.localStorage.getItem(TOKEN_STORAGE_KEY);
 
-    if (!storedToken) {
-      setIsBootstrapping(false);
-      return () => {
-        isActive = false;
-      };
-    }
-
-    setAuthToken(storedToken);
-    setToken(storedToken);
+    window.localStorage.removeItem('budgetly_token');
 
     apiClient
       .get<ApiEnvelope<User>>('/me')
@@ -56,9 +43,6 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       })
       .catch(() => {
         if (isActive) {
-          window.localStorage.removeItem(TOKEN_STORAGE_KEY);
-          setAuthToken(null);
-          setToken(null);
           setUser(null);
         }
       })
@@ -74,11 +58,6 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   }, []);
 
   function persistSession(response: ApiEnvelope<AuthResponse>) {
-    const nextToken = response.data.token;
-
-    window.localStorage.setItem(TOKEN_STORAGE_KEY, nextToken);
-    setAuthToken(nextToken);
-    setToken(nextToken);
     setUser(response.data.user);
   }
 
@@ -93,23 +72,16 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   }
 
   async function logout() {
-    if (token) {
-      await apiClient.post('/logout').catch(() => undefined);
-    }
-
-    window.localStorage.removeItem(TOKEN_STORAGE_KEY);
-    setAuthToken(null);
-    setToken(null);
+    await apiClient.post('/logout').catch(() => undefined);
     setUser(null);
   }
 
   const value: AuthContextValue = {
-    isAuthenticated: Boolean(token),
+    isAuthenticated: Boolean(user),
     isBootstrapping,
     login,
     logout,
     register,
-    token,
     user,
   };
 

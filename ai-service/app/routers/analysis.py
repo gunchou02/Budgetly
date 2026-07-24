@@ -7,8 +7,16 @@ from pydantic import ValidationError
 from app.core.security import verify_internal_token
 from app.providers.base import ReceiptAnalyzer, SpendingReportAnalyzer
 from app.providers.factory import get_receipt_analyzer, get_report_analyzer
-from app.schemas.receipt import ReceiptAnalysisRequest, ReceiptAnalysisResponse
+from app.schemas.receipt import (
+    BlobReceiptAnalysisRequest,
+    ReceiptAnalysisRequest,
+    ReceiptAnalysisResponse,
+)
 from app.schemas.report import SpendingReportRequest, SpendingReportResponse
+from app.services.blob_receipts import (
+    ReceiptBlobReader,
+    get_receipt_blob_reader,
+)
 from app.services.images import (
     ReceiptImagePreprocessor,
     get_receipt_image_preprocessor,
@@ -40,6 +48,29 @@ async def analyze_receipt(
         processed_image = await preprocessor.process(image, request.mime_type)
     finally:
         await image.close()
+
+    return await analyzer.analyze(request, processed_image)
+
+
+@router.post("/receipts/analyze-blob", response_model=ReceiptAnalysisResponse)
+async def analyze_blob_receipt(
+    request: BlobReceiptAnalysisRequest,
+    analyzer: Annotated[ReceiptAnalyzer, Depends(get_receipt_analyzer)],
+    preprocessor: Annotated[
+        ReceiptImagePreprocessor,
+        Depends(get_receipt_image_preprocessor),
+    ],
+    blob_reader: Annotated[
+        ReceiptBlobReader,
+        Depends(get_receipt_blob_reader),
+    ],
+) -> ReceiptAnalysisResponse:
+    source = await blob_reader.read(request.image_key)
+    processed_image = preprocessor.process_bytes(
+        source.data,
+        supplied_mime_type=source.mime_type,
+        expected_mime_type=request.mime_type,
+    )
 
     return await analyzer.analyze(request, processed_image)
 
