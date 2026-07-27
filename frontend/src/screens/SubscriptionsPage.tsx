@@ -207,18 +207,22 @@ export function SubscriptionsManager({ showHeader = true }: { showHeader?: boole
       {showHeader && (
         <header className="page-header">
           <div>
-            <p className="eyebrow">Subscriptions</p>
+            <p className="eyebrow">固定費の管理</p>
             <h1>固定費・サブスク</h1>
           </div>
         </header>
       )}
 
-      {error && <p className="form-error">{error}</p>}
+      {error && (
+        <p className="form-error" role="alert">
+          {error}
+        </p>
+      )}
 
       <section className="subscription-layout">
         <div className="subscription-hero">
           <div>
-            <p className="eyebrow">Monthly Fixed Cost</p>
+            <p className="eyebrow">毎月の固定費</p>
             <h2>今月の固定費</h2>
           </div>
           <strong>{formatYen(activeTotal)}</strong>
@@ -261,8 +265,14 @@ export function SubscriptionsManager({ showHeader = true }: { showHeader?: boole
                 value={newCategoryName}
                 onChange={(event) => setNewCategoryName(event.target.value)}
                 placeholder="固定費カテゴリを追加"
+                aria-label="新しい固定費カテゴリ名"
               />
-              <button className="secondary-button" type="button" onClick={createCategory}>
+              <button
+                className="secondary-button"
+                type="button"
+                aria-label="固定費カテゴリを追加"
+                onClick={createCategory}
+              >
                 追加
               </button>
             </div>
@@ -297,7 +307,11 @@ export function SubscriptionsManager({ showHeader = true }: { showHeader?: boole
       <section className="panel">
         <div className="panel-header split">
           <h2>固定費一覧</h2>
-          <select value={status} onChange={(event) => setStatus(event.target.value as SubscriptionStatus)}>
+          <select
+            value={status}
+            aria-label="固定費の表示状態"
+            onChange={(event) => setStatus(event.target.value as SubscriptionStatus)}
+          >
             <option value="active">有効</option>
             <option value="canceled">解約済み</option>
             <option value="all">すべて</option>

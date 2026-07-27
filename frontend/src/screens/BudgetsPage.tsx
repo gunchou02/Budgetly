@@ -94,7 +94,7 @@ function BudgetsPage() {
     <section className="page-stack">
       <header className="page-header">
         <div>
-          <p className="eyebrow">Budgets</p>
+          <p className="eyebrow">予算管理</p>
           <h1>予算</h1>
         </div>
       </header>
@@ -128,8 +128,16 @@ function BudgetsPage() {
               月間生活費予算
               <AmountInput name="amount" value={form.amount} onChange={updateField} />
             </label>
-            {error && <p className="form-error">{error}</p>}
-            {message && <p className="form-success">{message}</p>}
+            {error && (
+              <p className="form-error" role="alert">
+                {error}
+              </p>
+            )}
+            {message && (
+              <p className="form-success" role="status">
+                {message}
+              </p>
+            )}
             <button className="primary-button" type="submit">
               {budget ? '予算を更新' : '予算を設定'}
             </button>

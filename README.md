@@ -21,6 +21,7 @@
 
 <p align="center">
   <a href="#features">Features</a> ·
+  <a href="#design-and-ux">Design & UX</a> ·
   <a href="#architecture">Architecture</a> ·
   <a href="#local-development">Local setup</a> ·
   <a href="#testing">Testing</a> ·
@@ -45,18 +46,40 @@ Create account -> Set monthly budget -> Add or scan expenses
 
 ![Budgetly dashboard](./docs/images/dashboard-desktop.jpg)
 
+## Design and UX
+
+Budgetly is designed as a warm digital household ledger rather than a generic
+analytics dashboard. The interface uses a paper-like canvas, deep navy
+financial summary, violet interaction color, and a separate pink accent for
+recurring costs.
+
+| Principle | Product behavior |
+| --- | --- |
+| Remaining money first | The dashboard leads with how much can still be spent, budget usage, and a short next-step message |
+| Fast expense capture | A prominent action opens manual or receipt-based entry and moves focus directly to the amount field |
+| Responsive by content | Desktop uses a persistent sidebar; tablet and mobile use a compact header and bottom navigation |
+| Mobile-readable calendar | Dense amounts become color-coded indicators while accessible labels retain exact totals |
+| Predictable feedback | Loading, success, empty, error, submitting, focus, and selected states are explicitly represented |
+| Accessible analysis | Charts include text alternatives, controls have accessible names, and live updates use status or alert semantics |
+
+The primary screens were manually checked at 375 px, 768 px, and 1280 px
+without horizontal overflow. Calendar navigation, quick entry focus, collapsed
+form behavior, and mobile touch targets were also verified in the browser.
+
 ## Features
 
 | Area | What users can do |
 | --- | --- |
+| Dashboard | See remaining money, budget pace, daily allowance, selected-day spending, and upcoming fixed costs |
 | Monthly budget | Set one JPY budget per month and track usage and remaining money |
-| Expenses | Create, edit, delete, filter, and review recent spending |
+| Expenses | Add quickly by hand or receipt, then edit, delete, filter, and review spending by date |
 | Subscriptions | Manage recurring monthly costs and cancellation dates |
 | Receipt capture | Upload an image or open the rear camera on supported mobile browsers |
 | Receipt review | Correct merchant, date, amount, and category before creating an expense |
 | Reports | Compare category totals and all 12 months of a selected year |
 | AI insights | Receive structured Japanese summaries and practical recommendations |
-| Responsive UI | Use the same core workflow on desktop, tablet, and mobile |
+| Responsive UI | Use purpose-built desktop, tablet, and mobile navigation and layouts |
+| Accessible states | Understand focus, loading, success, errors, selections, and chart data without relying on color alone |
 
 ## Architecture
 

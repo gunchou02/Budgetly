@@ -14,9 +14,16 @@ interface AmountInputProps {
   value: number | string;
   onChange: (event: AmountInputEvent) => void;
   required?: boolean;
+  inputRef?: React.Ref<HTMLInputElement>;
 }
 
-export default function AmountInput({ name, value, onChange, required = false }: AmountInputProps) {
+export default function AmountInput({
+  name,
+  value,
+  onChange,
+  required = false,
+  inputRef,
+}: AmountInputProps) {
   function handleChange(event: React.ChangeEvent<HTMLInputElement>) {
     onChange({
       target: {
@@ -32,6 +39,7 @@ export default function AmountInput({ name, value, onChange, required = false }:
     <div className="amount-input-wrap">
       <span>¥</span>
       <input
+        ref={inputRef}
         name={name}
         type="text"
         inputMode="numeric"

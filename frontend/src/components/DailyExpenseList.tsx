@@ -59,7 +59,10 @@ function DailyExpenseList({ expenses, subscriptions, selectedDate, onEdit, onDel
           </div>
         ))}
         {selectedExpenses.length === 0 && selectedSubscriptions.length === 0 && (
-          <p className="muted-text">この日の支出はまだありません。</p>
+          <div className="daily-empty-state">
+            <p>この日の支出はまだありません。</p>
+            <span>「支出を追加」から、最初の記録をつけられます。</span>
+          </div>
         )}
       </div>
     </section>

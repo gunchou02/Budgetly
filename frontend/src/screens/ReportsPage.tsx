@@ -1,7 +1,7 @@
 'use client';
 
 import { useEffect, useState, type ChangeEvent } from 'react';
-import { CircleAlert, CircleCheck, Info, Sparkles, type LucideIcon } from 'lucide-react';
+import { CircleAlert, CircleCheck, Info, Lightbulb, type LucideIcon } from 'lucide-react';
 import { Bar, BarChart, CartesianGrid, ResponsiveContainer, Tooltip, XAxis, YAxis } from 'recharts';
 import { apiClient, getApiErrorMessage } from '../api/client';
 import { formatYen, getCurrentYearMonth } from '../utils/formatters';
@@ -116,16 +116,36 @@ function ReportsPage() {
     <section className="page-stack">
       <header className="page-header">
         <div>
-          <p className="eyebrow">Reports</p>
+          <p className="eyebrow">支出の振り返り</p>
           <h1>レポート</h1>
         </div>
         <div className="header-actions">
-          <input name="year" type="number" value={filters.year} onChange={updateFilter} min="2000" max="2100" />
-          <input name="month" type="number" value={filters.month} onChange={updateFilter} min="1" max="12" />
+          <input
+            name="year"
+            type="number"
+            value={filters.year}
+            onChange={updateFilter}
+            min="2000"
+            max="2100"
+            aria-label="年"
+          />
+          <input
+            name="month"
+            type="number"
+            value={filters.month}
+            onChange={updateFilter}
+            min="1"
+            max="12"
+            aria-label="月"
+          />
         </div>
       </header>
 
-      {error && <p className="form-error">{error}</p>}
+      {error && (
+        <p className="form-error" role="alert">
+          {error}
+        </p>
+      )}
 
       <div className="summary-grid">
         <article className="metric-card">
@@ -148,11 +168,20 @@ function ReportsPage() {
 
       <section className="panel ai-report-panel">
         <div className="panel-header ai-report-header">
-          <Sparkles aria-hidden="true" size={20} />
-          <h2>AI支出レポート</h2>
+          <Lightbulb aria-hidden="true" size={20} />
+          <h2>今月の気づき</h2>
         </div>
-        {isInsightLoading && <p className="muted-text">分析中...</p>}
-        {insightError && <p className="form-error">{insightError}</p>}
+        <p className="muted-text ai-report-source">登録済みの支出と固定費をもとにしています。</p>
+        {isInsightLoading && (
+          <p className="muted-text" role="status">
+            分析中...
+          </p>
+        )}
+        {insightError && (
+          <p className="form-error" role="alert">
+            {insightError}
+          </p>
+        )}
         {spendingInsight && (
           <div className="ai-report-content">
             <p className="ai-report-summary">{spendingInsight.summary}</p>
@@ -189,16 +218,41 @@ function ReportsPage() {
         <div className="panel-header">
           <h2>月別支出</h2>
         </div>
-        <ResponsiveContainer width="100%" height={320}>
-          <BarChart data={monthlyData}>
-            <CartesianGrid strokeDasharray="3 3" vertical={false} />
-            <XAxis dataKey="label" />
-            <YAxis tickFormatter={(value) => `¥${value / 1000}k`} />
-            <Tooltip formatter={(value) => formatYen(value as number)} />
-            <Bar dataKey="expense_total" name="通常支出" fill="#2563EB" radius={[4, 4, 0, 0]} />
-            <Bar dataKey="subscription_total" name="サブスク" fill="#DB2777" radius={[4, 4, 0, 0]} />
-          </BarChart>
-        </ResponsiveContainer>
+        <div aria-hidden="true">
+          <ResponsiveContainer width="100%" height={320}>
+            <BarChart data={monthlyData}>
+              <CartesianGrid strokeDasharray="3 3" vertical={false} />
+              <XAxis dataKey="label" />
+              <YAxis tickFormatter={(value) => `¥${value / 1000}k`} />
+              <Tooltip formatter={(value) => formatYen(value as number)} />
+              <Bar dataKey="expense_total" name="通常支出" fill="#6258C7" radius={[4, 4, 0, 0]} />
+              <Bar dataKey="subscription_total" name="サブスク" fill="#B73D6D" radius={[4, 4, 0, 0]} />
+            </BarChart>
+          </ResponsiveContainer>
+        </div>
+        {monthlyData.length > 0 && (
+          <table className="sr-only">
+            <caption>{filters.year}年の月別支出</caption>
+            <thead>
+              <tr>
+                <th scope="col">月</th>
+                <th scope="col">通常支出</th>
+                <th scope="col">固定費</th>
+                <th scope="col">合計</th>
+              </tr>
+            </thead>
+            <tbody>
+              {monthlyData.map((item) => (
+                <tr key={item.month}>
+                  <th scope="row">{item.label}</th>
+                  <td>{formatYen(item.expense_total)}</td>
+                  <td>{formatYen(item.subscription_total)}</td>
+                  <td>{formatYen(item.total_spent)}</td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        )}
       </section>
 
       <section className="panel">

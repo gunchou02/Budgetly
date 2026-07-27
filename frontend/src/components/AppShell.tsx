@@ -18,6 +18,7 @@ export default function AppShell({ children }: { children: ReactNode }) {
   const pathname = usePathname();
   const router = useRouter();
   const { logout, user } = useAuth();
+  const currentPageLabel = navigation.find((item) => item.to === pathname)?.label ?? 'ホーム';
 
   async function handleLogout() {
     await logout();
@@ -26,7 +27,7 @@ export default function AppShell({ children }: { children: ReactNode }) {
 
   return (
     <div className="app-shell">
-      <aside className="sidebar">
+      <aside className="sidebar desktop-sidebar">
         <div className="brand">
           <BrandMark priority />
           <div>
@@ -40,7 +41,12 @@ export default function AppShell({ children }: { children: ReactNode }) {
             const isActive = pathname === item.to;
 
             return (
-              <Link key={item.to} href={item.to} className={`nav-link${isActive ? ' active' : ''}`}>
+              <Link
+                key={item.to}
+                href={item.to}
+                className={`nav-link${isActive ? ' active' : ''}`}
+                aria-current={isActive ? 'page' : undefined}
+              >
                 <Icon size={18} aria-hidden="true" />
                 <span>{item.label}</span>
               </Link>
@@ -57,7 +63,43 @@ export default function AppShell({ children }: { children: ReactNode }) {
         </div>
       </aside>
 
+      <header className="mobile-header">
+        <Link href="/dashboard" className="mobile-brand" aria-label="Budgetly ホーム">
+          <BrandMark size={32} />
+          <strong>Budgetly</strong>
+        </Link>
+        <span className="mobile-page-label">{currentPageLabel}</span>
+        <button
+          type="button"
+          className="mobile-logout-button"
+          onClick={handleLogout}
+          aria-label="ログアウト"
+          title="ログアウト"
+        >
+          <LogOut size={20} aria-hidden="true" />
+        </button>
+      </header>
+
       <main className="main-content">{children}</main>
+
+      <nav className="mobile-nav" aria-label="モバイルメインナビゲーション">
+        {navigation.map((item) => {
+          const Icon = item.icon;
+          const isActive = pathname === item.to;
+
+          return (
+            <Link
+              key={item.to}
+              href={item.to}
+              className={`mobile-nav-link${isActive ? ' active' : ''}`}
+              aria-current={isActive ? 'page' : undefined}
+            >
+              <Icon size={20} aria-hidden="true" />
+              <span>{item.label}</span>
+            </Link>
+          );
+        })}
+      </nav>
     </div>
   );
 }

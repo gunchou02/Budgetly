@@ -97,8 +97,22 @@ function ExpenseCalendar({ year, month, expenses, subscriptions, selectedDate, o
         ))}
       </div>
       <div className="calendar-grid">
-        {calendarDays.map((day, index) =>
-          day ? (
+        {calendarDays.map((day, index) => {
+          if (!day) {
+            return <span key={`blank-${index}`} className="calendar-blank" />;
+          }
+
+          const expenseTotal = expenseTotalsByDate[day.date] ?? 0;
+          const recurringItems = recurringItemsByDate[day.date] ?? [];
+          const recurringTotal = recurringItems.reduce((sum, item) => sum + item.amount, 0);
+          const ariaDetails = [
+            expenseTotal > 0 ? `通常支出 ${formatYen(expenseTotal)}` : '',
+            recurringTotal > 0 ? `固定費 ${formatYen(recurringTotal)}` : '',
+          ]
+            .filter(Boolean)
+            .join('、');
+
+          return (
             <button
               key={day.date}
               type="button"
@@ -111,32 +125,33 @@ function ExpenseCalendar({ year, month, expenses, subscriptions, selectedDate, o
               ]
                 .filter(Boolean)
                 .join(' ')}
+              aria-label={`${month}月${day.day}日${ariaDetails ? `、${ariaDetails}` : '、支出なし'}`}
+              aria-pressed={day.date === selectedDate}
+              aria-current={day.date === today ? 'date' : undefined}
               onClick={() => onSelectDate(day.date)}
             >
               <span className="calendar-day-number">{day.day}</span>
+              <span className="calendar-mobile-indicators" aria-hidden="true">
+                {expenseTotal > 0 && <span className="expense-dot" />}
+                {recurringItems.length > 0 && <span className="recurring-dot" />}
+              </span>
               <div className="calendar-day-amounts">
-                {expenseTotalsByDate[day.date] ? (
+                {expenseTotal > 0 ? (
                   <small className="calendar-expense-total">
-                    <strong>{formatYen(expenseTotalsByDate[day.date])}</strong>
+                    <strong>{formatYen(expenseTotal)}</strong>
                   </small>
                 ) : null}
-                {(recurringItemsByDate[day.date] ?? [])
-                  .slice(0, 2)
-                  .map((item) => (
-                    <small key={item.id} className="calendar-item-line recurring">
-                      <span>{item.name}</span>
-                      <strong>{formatYen(item.amount)}</strong>
-                    </small>
-                  ))}
-                {(recurringItemsByDate[day.date] ?? []).length > 2 ? (
-                  <small>他 {(recurringItemsByDate[day.date] ?? []).length - 2}件</small>
-                ) : null}
+                {recurringItems.slice(0, 2).map((item) => (
+                  <small key={item.id} className="calendar-item-line recurring">
+                    <span>{item.name}</span>
+                    <strong>{formatYen(item.amount)}</strong>
+                  </small>
+                ))}
+                {recurringItems.length > 2 ? <small>他 {recurringItems.length - 2}件</small> : null}
               </div>
             </button>
-          ) : (
-            <span key={`blank-${index}`} className="calendar-blank" />
-          ),
-        )}
+          );
+        })}
       </div>
     </section>
   );
