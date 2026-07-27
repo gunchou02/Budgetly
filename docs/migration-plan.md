@@ -1,20 +1,22 @@
-# Stack Migration Status
+# Full-Stack Transition Status
 
 ## Decision
 
-Budgetly is moving from a split Next.js/Laravel application with MySQL to:
+Budgetly now uses one TypeScript product boundary with a focused Python
+compute service:
 
 ```text
 Next.js full stack
 + Prisma
-+ Neon PostgreSQL
-+ FastAPI for heavy and AI workloads
-+ Vercel Blob
++ PostgreSQL / Neon
++ FastAPI for image and AI workloads
++ private Vercel Blob
 + optional Vercel Queues
 + Vercel deployment
 ```
 
-The current navigation and amount-entry UX are preserved.
+The current navigation, Japanese interface, and amount-entry experience remain
+unchanged.
 
 ## Preserved Product Contract
 
@@ -22,29 +24,29 @@ The current navigation and amount-entry UX are preserved.
 - JPY integer amounts
 - user-scoped categories and monthly budgets
 - expense and subscription CRUD
-- dashboard and category/monthly reports
+- dashboard and deterministic category/monthly reports
 - receipt upload, editable review, and one-time confirmation
-- AI monthly spending explanation
+- AI-assisted monthly spending explanations
 - mobile camera-compatible receipt input
 
-## Implemented
+## Completed
 
 ### PostgreSQL and Prisma
 
-- complete Prisma schema for all product domains
-- PostgreSQL check, foreign-key, index, and unique constraints
-- committed initial migrations
-- PostgreSQL 17 local Docker service
-- Neon-compatible runtime adapter
-- automatic `prisma migrate deploy` on local frontend startup
+- complete schema for every product domain
+- check, foreign-key, index, and unique constraints
+- committed and reviewable migrations
+- PostgreSQL 17 for local Docker
+- Neon-compatible pooled runtime connection
+- automatic `prisma migrate deploy` during local startup
 
-### Next.js Main API
+### Next.js Product API
 
-- all browser-facing Laravel routes replaced by Route Handlers
-- Zod request validation
-- bcrypt password verification
+- Route Handlers for every browser-facing API
+- Zod validation at request boundaries
+- bcrypt password hashing and verification
 - hashed server-side sessions in an `HttpOnly` cookie
-- user ownership checks and cross-user `404` behavior
+- user ownership filters and cross-user `404` behavior
 - deterministic dashboard and report calculations
 - PostgreSQL-backed rate limiting and AI report caching
 
@@ -52,11 +54,11 @@ The current navigation and amount-entry UX are preserved.
 
 - local multipart upload and private filesystem storage
 - production direct upload to private Vercel Blob
-- byte signature, MIME, size, and pixel validation
-- direct FastAPI reads from private Blob to avoid Function body limits
-- receipt status machine and retry behavior
-- default post-response processing with `after()`
-- optional Vercel Queue dispatch
+- byte signature, MIME, file-size, and pixel validation
+- direct FastAPI reads from private Blob
+- explicit receipt states and retry behavior
+- post-response processing with Next.js `after()`
+- optional durable queue dispatch
 - transactionally idempotent expense confirmation
 
 ### FastAPI
@@ -64,75 +66,56 @@ The current navigation and amount-entry UX are preserved.
 - fake and OpenAI receipt providers
 - fake and OpenAI report providers
 - receipt image preprocessing
-- internal token authentication
+- internal-token authentication
 - typed request and response schemas
-- Vercel Python function configuration
+- separate Vercel function configuration
 
 ### Frontend
 
 - same-origin `/api` client
-- cookie-based auth bootstrap
-- legacy localStorage token removal
-- existing navigation preserved
-- existing amount-entry behavior preserved
+- cookie-based authentication bootstrap
+- existing navigation and amount-entry behavior preserved
 - receipt image picker with rear-camera hint on supported mobile browsers
-- Vercel Blob upload mode for production
+- production Blob upload mode
+- responsive review and failure states
 
-### Verification
+### Repository Cleanup
 
-- Next.js unit tests for date, report, validation, and image rules
-- full API integration test covering auth, ownership, CRUD, reports, and receipt
-  confirmation
-- FastAPI test suite
-- legacy Laravel regression suite retained during transition
-- desktop and mobile browser visual check
+- one source of truth for browser-facing application behavior
+- one PostgreSQL schema and migration history
+- three-service local Compose stack
+- current architecture reflected across README and project documentation
 
-## Remaining Before Production
+## Production Work Remaining
 
-1. Create the Neon production database.
+1. Provision Neon and connect pooled and direct database URLs.
 2. Create separate Vercel projects for `frontend` and `ai-service`.
-3. Connect private Vercel Blob to the frontend.
-4. configure and verify production environment variables.
-5. Apply Prisma migrations to Neon.
-6. Run a production smoke test with fake providers.
-7. Enable OpenAI providers only after budget controls are configured.
-8. Decide whether legacy MySQL contains data that must be migrated.
-9. Add GitHub Actions checks before merging deployment changes.
-10. Observe logs and error rates, then remove legacy services after a rollback
-    window.
+3. Connect one private Vercel Blob store to both projects.
+4. Configure environment variables for Preview and Production.
+5. Apply committed Prisma migrations to Neon.
+6. Run the complete smoke test with fake providers.
+7. Add GitHub Actions checks for Next.js, Prisma, and FastAPI.
+8. Enable OpenAI only after usage and spending limits are configured.
+9. Verify receipt capture on a physical mobile device.
+10. Add production logs, alerts, and backup checks.
 
-## Data Migration
+## Deployment Rollback
 
-This repository does not automatically copy MySQL records into PostgreSQL.
-
-For disposable local data, start with an empty PostgreSQL database. For real
-data, build and rehearse a one-time importer that:
-
-- preserves user IDs or maps all foreign keys explicitly;
-- rehashes or safely validates password compatibility;
-- converts dates in `Asia/Tokyo` without timestamp drift;
-- verifies per-user monthly totals before and after import;
-- does not import raw Sanctum tokens;
-- creates new server sessions only after users log in again.
-
-## Rollback Strategy
-
-The legacy Laravel, MySQL, Redis, Nginx, and worker services remain in the
-repository and Compose file. Keep the MySQL volume untouched until:
-
-- PostgreSQL data validation passes;
-- the Vercel production flow is accepted;
-- receipt analysis and report generation are observed in production;
-- the agreed rollback period ends.
+- Switch receipt and report providers to `fake` to stop external AI usage.
+- Switch the queue driver to `inline` if durable dispatch is unavailable.
+- Roll back application deployments only when migrations are backward
+  compatible.
+- Restore from a verified Neon backup when data recovery is required.
+- Never treat a code rollback as a database rollback.
 
 ## Key Risks
 
 | Risk | Mitigation |
 | --- | --- |
-| Authorization regression | Central `requireUser` and `userId` filters, ownership tests |
-| Duplicate money records | PostgreSQL unique constraints and transactional receipt confirmation |
-| Function upload limit | Direct browser-to-Blob upload |
-| AI cost growth | Fake defaults, rate limits, cache, provider toggles |
-| AI hallucinated amounts | Deterministic calculations remain in Next.js |
-| Serverless background loss | Optional durable Vercel Queue |
-| Legacy data loss | Keep MySQL volume and use a rehearsed importer |
+| Authorization regression | Central `requireUser`, scoped queries, and ownership integration tests |
+| Duplicate finance records | PostgreSQL constraints and transactional receipt confirmation |
+| Function upload limits | Direct browser-to-Blob upload |
+| AI cost growth | Fake defaults, rate limits, caching, and provider toggles |
+| AI-generated amount errors | Deterministic calculations remain in Next.js |
+| Background task interruption | Optional durable Vercel Queue |
+| Migration failure | Serialized deploy step, reviewed SQL, and verified backups |

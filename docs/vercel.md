@@ -199,5 +199,6 @@ every preview build.
 - Switch `BUDGETLY_QUEUE_DRIVER` back to `inline` if the queue is unavailable.
 - Roll back the Vercel frontend deployment only when its database schema is
   backward compatible.
-- Keep the legacy MySQL volume and Laravel code until PostgreSQL data is
-  accepted and the rollback period has ended.
+- Restore the database from a verified Neon backup when a rollback requires
+  data recovery; never depend on an application rollback to reverse a schema
+  change.

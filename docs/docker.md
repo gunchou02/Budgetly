@@ -1,11 +1,14 @@
 # Docker Development
 
+Budgetly runs as three local services: Next.js, FastAPI, and PostgreSQL.
+Docker Compose provides the same service boundaries used by the production
+design while keeping local AI usage cost-free by default.
+
 ## Prerequisites
 
 - Docker Desktop with Compose v2
-- approximately 6 GB of free memory for the complete legacy and target stack
-- ports `5173`, `8000`, `8080`, `5432`, `3306`, and `6379` available, or custom
-  values in `.env`
+- approximately 3 GB of free memory
+- ports `5173`, `8000`, and `5432`, or custom values in `.env`
 
 ## First Start
 
@@ -21,7 +24,7 @@ The frontend container performs:
 2. `prisma migrate deploy`
 3. `next dev --hostname 0.0.0.0 --port 5173`
 
-Wait until PostgreSQL, FastAPI, and the frontend are healthy or ready.
+Check both application health endpoints:
 
 ```bash
 curl http://127.0.0.1:5173/api/health
@@ -32,36 +35,28 @@ Open `http://127.0.0.1:5173`.
 
 ## Services
 
-| Service | Purpose | Primary target? |
+| Service | Purpose | Port |
 | --- | --- | --- |
-| `frontend` | Next.js UI, API, Prisma, receipt orchestration | Yes |
-| `postgres` | Target local database | Yes |
-| `ai-service` | FastAPI OCR and AI work | Yes |
-| `backend` | Legacy Laravel API | No |
-| `worker` | Legacy Laravel receipt worker | No |
-| `nginx` | Legacy Laravel HTTP entry point | No |
-| `mysql` | Legacy database | No |
-| `redis` | Legacy queue and cache | No |
-
-The legacy services remain available during migration and can be removed after
-data migration and rollback requirements are resolved.
+| `frontend` | Next.js UI, Route Handlers, Prisma, and receipt orchestration | `5173` |
+| `ai-service` | FastAPI receipt extraction and spending insights | `8000` |
+| `postgres` | PostgreSQL source of truth | `5432` |
 
 ## Common Commands
 
 ```bash
-# Follow target-stack logs
-docker compose logs -f frontend postgres ai-service
+# Follow all application logs
+docker compose logs -f frontend ai-service postgres
 
 # Restart one service
 docker compose restart frontend
 
-# Rebuild after Dockerfile or dependency changes
+# Rebuild after dependency or container changes
 docker compose up -d --build frontend ai-service
 
 # Stop while preserving volumes
 docker compose down
 
-# Show resolved Compose configuration
+# Show the resolved configuration
 docker compose config
 ```
 
@@ -82,29 +77,27 @@ docker compose exec postgres \
   psql -U budgetly -d budgetly
 ```
 
-Create a new migration with a normal local Node process or a one-off frontend
-container connected to PostgreSQL. Commit both `schema.prisma` and the generated
-migration SQL.
+After changing `frontend/prisma/schema.prisma`, create and review a Prisma
+migration. Commit both the schema and generated SQL. Production changes use
+`prisma migrate deploy`; do not use `prisma db push` as a deployment shortcut.
 
 ## Verification Commands
 
 ```bash
-# Next.js static checks and unit tests
+# Next.js checks
 docker compose run --rm --no-deps frontend npm run lint
+docker compose run --rm --no-deps frontend npm run typecheck
 docker compose run --rm --no-deps frontend npm run test:run
 docker compose run --rm --no-deps frontend npm run build
 
-# End-to-end API integration against the running stack
+# API integration against the running stack
 docker compose run --rm --no-deps \
   -e BUDGETLY_INTEGRATION_BASE_URL=http://frontend:5173 \
   frontend npm run test:integration
 
-# FastAPI
+# FastAPI checks
 docker compose exec ai-service ruff check .
 docker compose exec ai-service pytest
-
-# Legacy Laravel regression while it remains in the repository
-docker compose exec backend vendor/bin/phpunit
 ```
 
 ## Configuration
@@ -123,7 +116,8 @@ AI_RECEIPT_PROVIDER=fake
 AI_REPORT_PROVIDER=fake
 ```
 
-Local receipt behavior is intentionally cost-free:
+The local receipt pipeline uses private container storage and post-response
+processing:
 
 ```dotenv
 NEXT_PUBLIC_RECEIPT_UPLOAD_MODE=server
@@ -131,13 +125,13 @@ RECEIPT_STORAGE_DRIVER=local
 BUDGETLY_QUEUE_DRIVER=inline
 ```
 
-The Compose file passes those values directly to the frontend. Production
-values are documented in [Vercel Deployment](vercel.md).
+Production values and managed storage options are documented in
+[Vercel Deployment](vercel.md).
 
 ## Reset Local Data
 
-`docker compose down` preserves data. To remove only the target PostgreSQL
-database, inspect the volume name first:
+`docker compose down` preserves PostgreSQL and receipt files. To reset a local
+development database, inspect the exact volume name before deleting it:
 
 ```bash
 docker volume ls
@@ -146,14 +140,11 @@ docker volume rm budgetly_postgres-data
 docker compose up -d
 ```
 
-Do not delete `mysql-data` until legacy data is confirmed unnecessary or has
-been migrated.
+This operation permanently removes local accounts and finance records.
 
 ## Troubleshooting
 
 ### Frontend starts before the schema exists
-
-Check migration logs:
 
 ```bash
 docker compose logs frontend
@@ -164,29 +155,27 @@ The startup command should contain `npm run db:deploy`.
 
 ### Receipt upload returns a validation error
 
-Use JPEG, PNG, or WebP under 5 MB. Renaming a non-image file is rejected because
-the server checks the actual image signature.
+Use JPEG, PNG, or WebP under 5 MB. Renaming another file type is rejected
+because the server inspects the actual image bytes.
 
 ### Receipt remains `failed`
-
-Inspect both services:
 
 ```bash
 docker compose logs frontend ai-service
 ```
 
-Confirm that both services use the same `AI_INTERNAL_API_TOKEN`. The UI exposes
-a retry action for failed receipts.
+Confirm that both services use the same `AI_INTERNAL_API_TOKEN`. The receipt UI
+provides a retry action after a processing failure.
 
 ### AI output looks synthetic
 
-The local default provider is `fake`, so its receipt values are deterministic
-test data and do not come from the uploaded image. Set the receipt provider to
-`openai` and provide an API key to perform real extraction.
+The local default provider is `fake`; it returns deterministic test values and
+does not inspect receipt text. Set `AI_RECEIPT_PROVIDER=openai`, provide
+`OPENAI_API_KEY`, and rebuild `ai-service` for real model extraction.
 
 ### A port is already allocated
 
-Override it in root `.env`, for example:
+Override the host port in root `.env`:
 
 ```dotenv
 FRONTEND_PORT=5174

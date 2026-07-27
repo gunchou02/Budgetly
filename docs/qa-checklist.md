@@ -50,15 +50,6 @@ Expected:
 - fake and OpenAI provider contracts pass;
 - timeout and provider errors are mapped to stable responses.
 
-### Legacy Regression
-
-```bash
-docker compose exec backend vendor/bin/phpunit
-```
-
-Run this while Laravel remains in the repository. It protects the rollback
-implementation from accidental breakage.
-
 ## Manual Auth
 
 - Register with a new email.

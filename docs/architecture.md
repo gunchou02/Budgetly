@@ -91,8 +91,6 @@ enables the `budgetly-receipts` Vercel Queue for durable retries.
 6. Protected routes hash the cookie and load a non-expired session.
 7. Logout deletes the database session and expires the cookie.
 
-Legacy Sanctum bearer tokens are not used by the Next.js application.
-
 ## Receipt Flow
 
 ### Local
@@ -150,10 +148,3 @@ calculated facts and does not become the source of truth for money.
 - Provider timeouts, retries, failed states, and manual retry endpoints are
   explicit.
 - AI usage can run with deterministic fake providers without external cost.
-
-## Legacy Boundary
-
-`backend`, MySQL, Redis, Nginx, and the PHP worker are retained temporarily for
-comparison and data safety. They are not part of the target production request
-path. Remove them only after any required MySQL data migration and rollback
-window are complete.

@@ -127,7 +127,7 @@ def test_openai_receipt_provider_rejects_unknown_category() -> None:
         )
 
 
-def test_openai_report_provider_keeps_laravel_period() -> None:
+def test_openai_report_provider_keeps_requested_period() -> None:
     content = SpendingReportContent(
         summary="7月は食費の割合が最も高くなっています。",
         highlights=[

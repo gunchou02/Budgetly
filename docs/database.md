@@ -10,7 +10,6 @@ committed Prisma migrations.
 | --- | --- |
 | Local Docker | PostgreSQL 17 |
 | Production | Neon PostgreSQL |
-| Legacy comparison | MySQL 8.4 |
 
 `DATABASE_URL` is used by the running application. `DIRECT_URL` is available
 for migration tooling when a provider gives separate pooled and direct
@@ -169,14 +168,3 @@ docker compose up -d
 
 The exact volume prefix can differ by Compose project name. Confirm it with
 `docker volume ls` before deleting anything.
-
-## Legacy Data
-
-The new PostgreSQL schema does not automatically import legacy MySQL data.
-Before removing MySQL:
-
-1. decide whether the existing data is disposable test data or must be kept;
-2. export and transform any required records;
-3. validate row counts, ownership, totals, dates, and unique constraints;
-4. keep a backup and rollback window;
-5. remove legacy services only after acceptance.

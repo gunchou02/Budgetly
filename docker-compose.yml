@@ -1,107 +1,4 @@
 services:
-  nginx:
-    image: nginx:1.27-alpine
-    ports:
-      - "${API_PORT:-8080}:80"
-    volumes:
-      - ./backend:/var/www/html
-      - ./docker/nginx/default.conf:/etc/nginx/conf.d/default.conf
-    depends_on:
-      backend:
-        condition: service_healthy
-
-  backend:
-    build:
-      context: ./docker/backend
-    working_dir: /var/www/html
-    volumes:
-      - ./backend:/var/www/html
-      - backend-vendor:/var/www/html/vendor
-      - ./docker/backend/entrypoint.sh:/usr/local/bin/budgetly-entrypoint:ro
-    entrypoint: ["/bin/sh", "/usr/local/bin/budgetly-entrypoint"]
-    command: ["php-fpm"]
-    environment:
-      APP_ENV: local
-      APP_DEBUG: "true"
-      APP_URL: http://localhost:${API_PORT:-8080}
-      FRONTEND_URL: http://localhost:${FRONTEND_PORT:-5173}
-      DB_CONNECTION: mysql
-      DB_HOST: mysql
-      DB_PORT: 3306
-      DB_DATABASE: ${DB_DATABASE:-budgetly}
-      DB_USERNAME: ${DB_USERNAME:-budgetly}
-      DB_PASSWORD: ${DB_PASSWORD:-secret}
-      AI_SERVICE_URL: http://ai-service:8000
-      AI_SERVICE_TOKEN: ${AI_INTERNAL_API_TOKEN:-local-ai-secret}
-      AI_SERVICE_CONNECT_TIMEOUT: 3
-      AI_SERVICE_TIMEOUT: 25
-      AI_SERVICE_REPORT_TIMEOUT: 25
-      AI_SERVICE_MAX_EXTRACTED_TEXT_LENGTH: 16000
-      AI_REPORT_RATE_PER_MINUTE: ${AI_REPORT_RATE_PER_MINUTE:-10}
-      AI_REPORT_CACHE_TTL_SECONDS: 21600
-      QUEUE_CONNECTION: redis
-      REDIS_CLIENT: phpredis
-      REDIS_HOST: redis
-      REDIS_PORT: 6379
-      REDIS_DB: 0
-      REDIS_CACHE_DB: 1
-      REDIS_QUEUE: receipts
-      REDIS_QUEUE_RETRY_AFTER: 60
-    depends_on:
-      mysql:
-        condition: service_healthy
-    healthcheck:
-      test: ["CMD-SHELL", "pidof php-fpm >/dev/null || exit 1"]
-      interval: 5s
-      timeout: 3s
-      retries: 12
-      start_period: 30s
-
-  worker:
-    build:
-      context: ./docker/backend
-    working_dir: /var/www/html
-    volumes:
-      - ./backend:/var/www/html
-      - backend-vendor:/var/www/html/vendor
-      - ./docker/backend/entrypoint.sh:/usr/local/bin/budgetly-entrypoint:ro
-    entrypoint: ["/bin/sh", "/usr/local/bin/budgetly-entrypoint"]
-    command: ["php", "artisan", "queue:work", "redis", "--queue=receipts", "--sleep=1", "--timeout=30", "--memory=128", "--max-time=3600"]
-    restart: unless-stopped
-    stop_grace_period: 45s
-    environment:
-      APP_ENV: local
-      APP_DEBUG: "true"
-      BUDGETLY_SKIP_INIT: "true"
-      CACHE_STORE: redis
-      DB_CONNECTION: mysql
-      DB_HOST: mysql
-      DB_PORT: 3306
-      DB_DATABASE: ${DB_DATABASE:-budgetly}
-      DB_USERNAME: ${DB_USERNAME:-budgetly}
-      DB_PASSWORD: ${DB_PASSWORD:-secret}
-      AI_SERVICE_URL: http://ai-service:8000
-      AI_SERVICE_TOKEN: ${AI_INTERNAL_API_TOKEN:-local-ai-secret}
-      AI_SERVICE_CONNECT_TIMEOUT: 3
-      AI_SERVICE_TIMEOUT: 25
-      AI_SERVICE_REPORT_TIMEOUT: 25
-      AI_SERVICE_MAX_EXTRACTED_TEXT_LENGTH: 16000
-      AI_REPORT_RATE_PER_MINUTE: ${AI_REPORT_RATE_PER_MINUTE:-10}
-      AI_REPORT_CACHE_TTL_SECONDS: 21600
-      QUEUE_CONNECTION: redis
-      REDIS_CLIENT: phpredis
-      REDIS_HOST: redis
-      REDIS_PORT: 6379
-      REDIS_DB: 0
-      REDIS_CACHE_DB: 1
-      REDIS_QUEUE: receipts
-      REDIS_QUEUE_RETRY_AFTER: 60
-    depends_on:
-      backend:
-        condition: service_healthy
-      redis:
-        condition: service_healthy
-
   frontend:
     image: node:22-alpine
     working_dir: /app
@@ -116,8 +13,10 @@ services:
       DIRECT_URL: postgresql://${POSTGRES_USER:-budgetly}:${POSTGRES_PASSWORD:-secret}@postgres:5432/${POSTGRES_DB:-budgetly}?schema=public
       AI_SERVICE_URL: http://ai-service:8000
       AI_INTERNAL_API_TOKEN: ${AI_INTERNAL_API_TOKEN:-local-ai-secret}
-      RECEIPT_STORAGE_DRIVER: local
-      BUDGETLY_QUEUE_DRIVER: inline
+      AI_REPORT_CACHE_TTL_SECONDS: ${AI_REPORT_CACHE_TTL_SECONDS:-3600}
+      NEXT_PUBLIC_RECEIPT_UPLOAD_MODE: ${NEXT_PUBLIC_RECEIPT_UPLOAD_MODE:-server}
+      RECEIPT_STORAGE_DRIVER: ${RECEIPT_STORAGE_DRIVER:-local}
+      BUDGETLY_QUEUE_DRIVER: ${BUDGETLY_QUEUE_DRIVER:-inline}
       BLOB_READ_WRITE_TOKEN: ${BLOB_READ_WRITE_TOKEN:-}
       VERCEL_QUEUE_API_TOKEN: ${VERCEL_QUEUE_API_TOKEN:-}
     depends_on:
@@ -149,6 +48,7 @@ services:
       AI_OPENAI_MODEL: ${AI_OPENAI_MODEL:-gpt-4o-mini}
       AI_OPENAI_TIMEOUT_SECONDS: 20
       AI_OPENAI_MAX_RETRIES: 0
+      BLOB_READ_WRITE_TOKEN: ${BLOB_READ_WRITE_TOKEN:-}
     command: ["uvicorn", "app.main:app", "--host", "0.0.0.0", "--port", "8000", "--reload"]
     healthcheck:
       test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://127.0.0.1:8000/health', timeout=2)"]
@@ -156,25 +56,6 @@ services:
       timeout: 3s
       retries: 12
       start_period: 10s
-
-  mysql:
-    image: mysql:8.4
-    ports:
-      - "${MYSQL_PORT:-3306}:3306"
-    environment:
-      MYSQL_DATABASE: ${DB_DATABASE:-budgetly}
-      MYSQL_USER: ${DB_USERNAME:-budgetly}
-      MYSQL_PASSWORD: ${DB_PASSWORD:-secret}
-      MYSQL_ROOT_PASSWORD: ${DB_ROOT_PASSWORD:-root}
-      TZ: Asia/Tokyo
-    volumes:
-      - mysql-data:/var/lib/mysql
-    healthcheck:
-      test: ["CMD-SHELL", "mysqladmin ping -h 127.0.0.1 -uroot -p\"$${MYSQL_ROOT_PASSWORD}\" --silent"]
-      interval: 5s
-      timeout: 5s
-      retries: 12
-      start_period: 20s
 
   postgres:
     image: postgres:17-alpine
@@ -194,24 +75,7 @@ services:
       retries: 12
       start_period: 10s
 
-  redis:
-    image: redis:7.4.9-alpine
-    ports:
-      - "${REDIS_PORT:-6379}:6379"
-    command: ["redis-server", "--appendonly", "yes"]
-    volumes:
-      - redis-data:/data
-    healthcheck:
-      test: ["CMD", "redis-cli", "ping"]
-      interval: 5s
-      timeout: 3s
-      retries: 12
-      start_period: 5s
-
 volumes:
-  backend-vendor:
   frontend-node-modules:
   frontend-receipts:
-  mysql-data:
   postgres-data:
-  redis-data:
