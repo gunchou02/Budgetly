@@ -37,14 +37,18 @@ Instead of only recording transactions, it combines monthly budgets, recurring
 costs, receipt capture, and concise Japanese insights in one responsive
 workflow.
 
+> **UI refresh:** Budgetly now uses a warm digital-ledger interface with
+> remaining money first, faster expense entry, and layouts tailored to desktop,
+> tablet, and mobile.
+
 ```text
 Create account -> Set monthly budget -> Add or scan expenses
 -> Review dashboard -> Understand spending patterns
 ```
 
-## Product Preview
+## Refreshed Product Preview
 
-![Budgetly dashboard](./docs/images/dashboard-desktop.jpg)
+![Refreshed Budgetly dashboard showing the monthly balance, spending calendar, and quick expense entry](./docs/images/dashboard-ui-refresh.jpg)
 
 ## Design and UX
 
