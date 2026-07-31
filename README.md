@@ -23,7 +23,7 @@
 </p>
 
 <p align="center">
-  <a href="https://budgetly-web-ashen.vercel.app">Live app</a> ·
+  <a href="https://budgetly-jp.vercel.app">Live app</a> ·
   <a href="#features">Features</a> ·
   <a href="#design-and-ux">Design & UX</a> ·
   <a href="#architecture">Architecture</a> ·
@@ -272,8 +272,8 @@ forwarding large multipart bodies between Functions.
 
 | Production endpoint | URL |
 | --- | --- |
-| Budgetly | https://budgetly-web-ashen.vercel.app |
-| Main API health | https://budgetly-web-ashen.vercel.app/api/health |
+| Budgetly | https://budgetly-jp.vercel.app |
+| Main API health | https://budgetly-jp.vercel.app/api/health |
 | FastAPI health | https://budgetly-ai-ten.vercel.app/health |
 
 Production currently uses deterministic fake AI providers, so the deployed

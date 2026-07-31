@@ -23,8 +23,8 @@ Production data services:
 
 | Component | Production value |
 | --- | --- |
-| Web | https://budgetly-web-ashen.vercel.app |
-| Web health | https://budgetly-web-ashen.vercel.app/api/health |
+| Web | https://budgetly-jp.vercel.app |
+| Web health | https://budgetly-jp.vercel.app/api/health |
 | AI service | https://budgetly-ai-ten.vercel.app |
 | AI health | https://budgetly-ai-ten.vercel.app/health |
 | Database | Neon `budgetly-db`, Singapore |
