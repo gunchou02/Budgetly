@@ -1,7 +1,9 @@
+/.vercel/
 /frontend/node_modules/
 /frontend/dist/
 /frontend/.next/
 /frontend/out/
+/frontend/.vercel/
 /frontend/*.tsbuildinfo
 /frontend/next-env.d.ts
 /frontend/.env
@@ -9,7 +11,9 @@
 /frontend/.local-storage/
 /frontend/src/generated/prisma/
 /ai-service/.env
+/ai-service/.env.local
 /ai-service/.venv/
+/ai-service/.vercel/
 /ai-service/.pytest_cache/
 /ai-service/.ruff_cache/
 /.ruff_cache/

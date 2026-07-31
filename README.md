@@ -23,6 +23,7 @@
 </p>
 
 <p align="center">
+  <a href="https://budgetly-web-ashen.vercel.app">Live app</a> ·
   <a href="#features">Features</a> ·
   <a href="#design-and-ux">Design & UX</a> ·
   <a href="#architecture">Architecture</a> ·
@@ -141,7 +142,7 @@ authenticated user's data and sends a bounded internal request.
 | Validation | Zod, Pydantic |
 | Authentication | Hashed server-side session + `HttpOnly` cookie |
 | Database | PostgreSQL 17, Prisma 7, Neon adapter |
-| AI service | Python 3.14, FastAPI, Pillow, OpenAI SDK |
+| AI service | Python 3.13, FastAPI, Pillow, OpenAI SDK |
 | File storage | Local private volume / private Vercel Blob |
 | Background work | Next.js `after()` / optional Vercel Queues |
 | Development | Docker Compose |
@@ -266,6 +267,16 @@ The production design uses two Vercel projects from this repository:
 Neon is connected to the frontend project. The same private Vercel Blob store
 is connected to both projects so FastAPI can read receipt images without
 forwarding large multipart bodies between Functions.
+
+| Production endpoint | URL |
+| --- | --- |
+| Budgetly | https://budgetly-web-ashen.vercel.app |
+| Main API health | https://budgetly-web-ashen.vercel.app/api/health |
+| FastAPI health | https://budgetly-ai-ten.vercel.app/health |
+
+Production currently uses deterministic fake AI providers, so the deployed
+receipt and report flows do not consume OpenAI credits. Real providers remain
+an explicit, independently controlled production setting.
 
 See [Vercel deployment](./docs/vercel.md) for environment variables, migration
 order, Blob setup, queue options, smoke tests, and rollback guidance.

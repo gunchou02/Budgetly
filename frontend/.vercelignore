@@ -1,0 +1,8 @@
+.env
+.env.*
+!.env.example
+.local-storage
+.next
+coverage
+node_modules
+tests

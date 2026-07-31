@@ -44,45 +44,47 @@
 - obsolete runtime code, containers, volumes, and configuration removed
 - project documentation synchronized with the final architecture
 
-## Current Phase
+## Completed Production Phase
 
 ### Phase 19: Production Deployment and CI
-
-Completed:
 
 - GitHub Actions component and API integration jobs
 - npm and Python production dependency audits
 - weekly Dependabot updates for npm, pip, Actions, and Docker
 - Prisma and Next.js security patch updates
+- Neon PostgreSQL and private Vercel Blob in Singapore
+- separate `budgetly-web` and `budgetly-ai` Vercel deployments in `sin1`
+- GitHub-connected production deployments from `main`
+- Production-scoped secrets and committed Prisma migrations
+- authenticated CRUD, ownership, report, and receipt integration smoke test
+- desktop and mobile responsive browser verification
+- fake AI providers retained to prevent unplanned API cost
 
-Remaining:
-
-1. Provision Neon and private Vercel Blob.
-2. Deploy `ai-service` with fake providers.
-3. Deploy `frontend` and apply Prisma migrations.
-4. Run authenticated CRUD and receipt smoke tests.
-5. Configure production logs, function timeouts, backups, and alerts.
-6. Verify receipt capture on desktop and a physical mobile device.
-7. Enable OpenAI with a spending limit after fake-provider acceptance.
-
-Completion criteria:
-
-- production login and all user-owned CRUD flows work;
-- receipt upload works on desktop and a physical mobile camera;
-- a receipt can be reviewed and confirmed exactly once;
-- AI failures degrade to a clear retryable state;
-- CI blocks lint, type, migration, test, and build regressions;
-- backups and environment variables are verified.
-
-## Later Phases
+## Next Phase
 
 ### Phase 20: Production Hardening
 
-- enable durable queues when receipt traffic requires them
-- schedule cleanup for expired sessions, caches, and rate-limit buckets
-- add observability dashboards and provider cost monitoring
-- add account recovery and email verification
-- build an automated receipt-quality evaluation dataset
+1. Give Preview deployments an isolated Neon branch and non-production storage
+   configuration.
+2. Add Playwright end-to-end coverage for registration, login, budget entry,
+   and receipt review.
+3. Add Vercel runtime monitoring, error alerts, and a documented Neon restore
+   drill.
+4. Verify rear-camera receipt capture on a physical mobile device.
+5. Add scheduled cleanup for expired sessions, caches, and rate-limit buckets.
+6. Enable OpenAI only after setting provider usage and spending limits.
+7. Enable durable queues only when receipt volume requires retry guarantees.
+
+Completion criteria:
+
+- a Preview deployment cannot access Production data or files;
+- GitHub pushes produce observable, reproducible deployments;
+- core browser flows pass automated E2E checks;
+- runtime failures and database recovery have documented operating procedures;
+- physical mobile receipt capture is accepted;
+- enabling billable AI requires an explicit cost-control change.
+
+## Later Phases
 
 ### Phase 21: Product Expansion
 

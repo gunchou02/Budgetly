@@ -86,17 +86,28 @@ unchanged.
 - three-service local Compose stack
 - current architecture reflected across README and project documentation
 
-## Production Work Remaining
+## Production Deployment Status
 
-1. Provision Neon and connect pooled and direct database URLs.
-2. Create separate Vercel projects for `frontend` and `ai-service`.
-3. Connect one private Vercel Blob store to both projects.
-4. Configure environment variables for Preview and Production.
-5. Apply committed Prisma migrations to Neon.
-6. Run the complete smoke test with fake providers.
-7. Enable OpenAI only after usage and spending limits are configured.
-8. Verify receipt capture on a physical mobile device.
-9. Add production logs, alerts, and backup checks.
+Completed:
+
+- provisioned Neon in Singapore with pooled runtime and direct migration URLs;
+- deployed separate `frontend` and `ai-service` Vercel projects in `sin1`;
+- connected both Vercel projects to the GitHub repository for `main`
+  deployments;
+- connected private Vercel Blob storage to both services;
+- configured Production-scoped secrets and kept Preview isolated;
+- applied all committed Prisma migrations to Neon;
+- passed the authenticated CRUD, ownership, report, and receipt integration
+  scenario with fake providers;
+- verified 1280 px desktop and 375 px mobile browser layouts.
+
+Hardening work:
+
+1. Verify rear-camera receipt capture on a physical mobile device.
+2. Add production log alerts and verify the Neon restore procedure.
+3. Give Preview deployments an isolated Neon branch and storage strategy.
+4. Enable OpenAI only after usage and spending limits are configured.
+5. Enable durable queues only when receipt traffic requires them.
 
 ## Deployment Rollback
 

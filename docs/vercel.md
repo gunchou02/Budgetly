@@ -19,10 +19,47 @@ Production data services:
 - optional Vercel Queue topic `budgetly-receipts`
 - OpenAI called only by `budgetly-ai`
 
+## Current Production
+
+| Component | Production value |
+| --- | --- |
+| Web | https://budgetly-web-ashen.vercel.app |
+| Web health | https://budgetly-web-ashen.vercel.app/api/health |
+| AI service | https://budgetly-ai-ten.vercel.app |
+| AI health | https://budgetly-ai-ten.vercel.app/health |
+| Database | Neon `budgetly-db`, Singapore |
+| Receipt storage | Private Vercel Blob `budgetly-receipts`, Singapore |
+| Function region | `sin1` |
+
+Both projects use Production-scoped secrets. Preview deployments do not receive
+the production database or Blob credentials; an isolated Preview database is a
+separate hardening task. OpenAI is intentionally disabled and both AI providers
+remain `fake`.
+
+Both Vercel projects are connected to the same GitHub repository. A push to
+`main` deploys each project from its configured root directory.
+
+The initial production acceptance run verified:
+
+- FastAPI health and readiness;
+- Next.js health, registration, authentication, and user-owned CRUD;
+- 19 default categories and monthly-budget uniqueness;
+- dashboard, report, subscription, and expense behavior;
+- cross-user `404` responses;
+- private Blob receipt upload, processing, confirmation, and deletion;
+- 1280 px desktop and 375 px mobile layouts without horizontal overflow;
+- no browser console or page errors;
+- zero automated WCAG A/AA violations on the login screen.
+
+Physical mobile camera capture remains a device-only acceptance check.
+
 ## 1. Create FastAPI Project
 
 Create a Vercel project from the repository and set root directory to
 `ai-service`.
+
+The project is pinned to Python 3.13 by `ai-service/.python-version` and its
+PEP 621 metadata in `ai-service/pyproject.toml`.
 
 Configure:
 
