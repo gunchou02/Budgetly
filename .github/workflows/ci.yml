@@ -1,0 +1,184 @@
+name: CI
+
+on:
+  push:
+    branches:
+      - main
+  pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ci-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  frontend:
+    name: Frontend
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    defaults:
+      run:
+        working-directory: frontend
+    env:
+      NEXT_TELEMETRY_DISABLED: "1"
+      DATABASE_URL: postgresql://budgetly:secret@127.0.0.1:5432/budgetly?schema=public
+      DIRECT_URL: postgresql://budgetly:secret@127.0.0.1:5432/budgetly?schema=public
+      AI_SERVICE_URL: http://127.0.0.1:8000
+      AI_INTERNAL_API_TOKEN: ci-internal-token
+      RECEIPT_STORAGE_DRIVER: local
+      BUDGETLY_QUEUE_DRIVER: inline
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v7
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v7
+        with:
+          node-version: "22"
+          cache: npm
+          cache-dependency-path: frontend/package-lock.json
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Audit production dependencies
+        run: npm audit --omit=dev --audit-level=high
+
+      - name: Lint
+        run: npm run lint
+
+      - name: Type-check
+        run: npm run typecheck
+
+      - name: Run unit tests
+        run: npm run test:run
+
+      - name: Build
+        run: npm run build
+
+  ai-service:
+    name: AI service
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    defaults:
+      run:
+        working-directory: ai-service
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v7
+
+      - name: Set up Python
+        uses: actions/setup-python@v7
+        with:
+          python-version: "3.14"
+          cache: pip
+          cache-dependency-path: |
+            ai-service/requirements.txt
+            ai-service/requirements-dev.txt
+
+      - name: Install dependencies
+        run: |
+          python -m pip install --upgrade pip
+          python -m pip install -r requirements-dev.txt
+
+      - name: Check dependency consistency
+        run: python -m pip check
+
+      - name: Audit production dependencies
+        run: pip-audit --cache-dir /tmp/pip-audit -r requirements.txt
+
+      - name: Lint
+        run: ruff check .
+
+      - name: Run tests
+        run: pytest
+
+  integration:
+    name: API integration
+    needs:
+      - frontend
+      - ai-service
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    services:
+      postgres:
+        image: postgres:17-alpine
+        env:
+          POSTGRES_DB: budgetly
+          POSTGRES_USER: budgetly
+          POSTGRES_PASSWORD: secret
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U budgetly -d budgetly"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 12
+    env:
+      NEXT_TELEMETRY_DISABLED: "1"
+      DATABASE_URL: postgresql://budgetly:secret@127.0.0.1:5432/budgetly?schema=public
+      DIRECT_URL: postgresql://budgetly:secret@127.0.0.1:5432/budgetly?schema=public
+      AI_SERVICE_URL: http://127.0.0.1:8000
+      AI_INTERNAL_API_TOKEN: ci-internal-token
+      AI_ENVIRONMENT: test
+      AI_RECEIPT_PROVIDER: fake
+      AI_REPORT_PROVIDER: fake
+      RECEIPT_STORAGE_DRIVER: local
+      BUDGETLY_QUEUE_DRIVER: inline
+      BUDGETLY_INTEGRATION_BASE_URL: http://127.0.0.1:5173
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v7
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v7
+        with:
+          node-version: "22"
+          cache: npm
+          cache-dependency-path: frontend/package-lock.json
+
+      - name: Set up Python
+        uses: actions/setup-python@v7
+        with:
+          python-version: "3.14"
+          cache: pip
+          cache-dependency-path: ai-service/requirements.txt
+
+      - name: Install frontend dependencies
+        working-directory: frontend
+        run: npm ci
+
+      - name: Install AI service dependencies
+        working-directory: ai-service
+        run: python -m pip install -r requirements.txt
+
+      - name: Apply database migrations
+        working-directory: frontend
+        run: npm run db:deploy
+
+      - name: Start application services
+        run: |
+          cd ai-service
+          nohup python -m uvicorn app.main:app --host 127.0.0.1 --port 8000 > "$RUNNER_TEMP/ai-service.log" 2>&1 &
+          cd ../frontend
+          nohup npm run dev > "$RUNNER_TEMP/frontend.log" 2>&1 &
+
+      - name: Wait for application services
+        run: |
+          curl --fail --retry 30 --retry-delay 1 --retry-all-errors http://127.0.0.1:8000/ready
+          curl --fail --retry 30 --retry-delay 1 --retry-all-errors http://127.0.0.1:5173/api/health
+
+      - name: Run API integration test
+        working-directory: frontend
+        run: npm run test:integration
+
+      - name: Print service logs on failure
+        if: failure()
+        run: |
+          echo "===== FastAPI ====="
+          cat "$RUNNER_TEMP/ai-service.log" || true
+          echo "===== Next.js ====="
+          cat "$RUNNER_TEMP/frontend.log" || true

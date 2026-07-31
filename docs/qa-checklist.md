@@ -6,15 +6,20 @@
 
 ```bash
 docker compose run --rm --no-deps frontend npm run lint
+docker compose run --rm --no-deps frontend npm run typecheck
 docker compose run --rm --no-deps frontend npm run test:run
 docker compose run --rm --no-deps frontend npm run build
+docker compose run --rm --no-deps \
+  frontend npm audit --omit=dev --audit-level=high
 ```
 
 Expected:
 
 - ESLint succeeds.
+- TypeScript and generated route types succeed.
 - Unit tests cover date calculations, reports, validation, and image rules.
 - The production build has no missing environment or dynamic file-path warning.
+- Production dependencies have no high or critical npm advisories.
 
 ### API Integration
 
@@ -41,6 +46,9 @@ Expected flow:
 ```bash
 docker compose exec ai-service ruff check .
 docker compose exec ai-service pytest
+docker compose exec ai-service python -m pip check
+docker compose exec ai-service \
+  pip-audit --cache-dir /tmp/pip-audit -r requirements.txt
 ```
 
 Expected:
@@ -49,6 +57,20 @@ Expected:
 - malformed images and payloads are rejected safely;
 - fake and OpenAI provider contracts pass;
 - timeout and provider errors are mapped to stable responses.
+- installed requirements are consistent and have no known vulnerabilities.
+
+### GitHub Actions
+
+The `CI` workflow runs on pull requests, pushes to `main`, and manual dispatch.
+
+Expected jobs:
+
+- `Frontend`: install, production audit, lint, type-check, unit test, and build;
+- `AI service`: install, dependency checks, Ruff, and Pytest;
+- `API integration`: PostgreSQL migration and the complete authenticated flow.
+
+The integration job runs only after both component jobs pass. Failed service
+startup or integration tests print bounded FastAPI and Next.js logs.
 
 ## Manual Auth
 

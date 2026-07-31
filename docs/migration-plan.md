@@ -94,10 +94,9 @@ unchanged.
 4. Configure environment variables for Preview and Production.
 5. Apply committed Prisma migrations to Neon.
 6. Run the complete smoke test with fake providers.
-7. Add GitHub Actions checks for Next.js, Prisma, and FastAPI.
-8. Enable OpenAI only after usage and spending limits are configured.
-9. Verify receipt capture on a physical mobile device.
-10. Add production logs, alerts, and backup checks.
+7. Enable OpenAI only after usage and spending limits are configured.
+8. Verify receipt capture on a physical mobile device.
+9. Add production logs, alerts, and backup checks.
 
 ## Deployment Rollback
 

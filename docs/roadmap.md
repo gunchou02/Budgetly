@@ -44,18 +44,26 @@
 - obsolete runtime code, containers, volumes, and configuration removed
 - project documentation synchronized with the final architecture
 
-## Next Phase
+## Current Phase
 
 ### Phase 19: Production Deployment and CI
+
+Completed:
+
+- GitHub Actions component and API integration jobs
+- npm and Python production dependency audits
+- weekly Dependabot updates for npm, pip, Actions, and Docker
+- Prisma and Next.js security patch updates
+
+Remaining:
 
 1. Provision Neon and private Vercel Blob.
 2. Deploy `ai-service` with fake providers.
 3. Deploy `frontend` and apply Prisma migrations.
 4. Run authenticated CRUD and receipt smoke tests.
-5. Add GitHub Actions for Next.js, Prisma, and FastAPI.
-6. Configure production logs, function timeouts, backups, and alerts.
-7. Verify receipt capture on desktop and a physical mobile device.
-8. Enable OpenAI with a spending limit after fake-provider acceptance.
+5. Configure production logs, function timeouts, backups, and alerts.
+6. Verify receipt capture on desktop and a physical mobile device.
+7. Enable OpenAI with a spending limit after fake-provider acceptance.
 
 Completion criteria:
 

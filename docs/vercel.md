@@ -181,14 +181,21 @@ Run these checks before production deployment:
 ```bash
 cd frontend
 npm ci
+npm audit --omit=dev --audit-level=high
 npm run lint
+npm run typecheck
 npm run test:run
 npm run build
 
 cd ../ai-service
+python -m pip check
+pip-audit --cache-dir /tmp/pip-audit -r requirements.txt
 ruff check .
 pytest
 ```
+
+The committed `CI` workflow runs these component gates and a PostgreSQL-backed
+API integration job on every pull request and push to `main`.
 
 Run `prisma migrate deploy` as a serialized release step, not concurrently in
 every preview build.

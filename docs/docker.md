@@ -89,6 +89,8 @@ docker compose run --rm --no-deps frontend npm run lint
 docker compose run --rm --no-deps frontend npm run typecheck
 docker compose run --rm --no-deps frontend npm run test:run
 docker compose run --rm --no-deps frontend npm run build
+docker compose run --rm --no-deps \
+  frontend npm audit --omit=dev --audit-level=high
 
 # API integration against the running stack
 docker compose run --rm --no-deps \
@@ -98,6 +100,9 @@ docker compose run --rm --no-deps \
 # FastAPI checks
 docker compose exec ai-service ruff check .
 docker compose exec ai-service pytest
+docker compose exec ai-service python -m pip check
+docker compose exec ai-service \
+  pip-audit --cache-dir /tmp/pip-audit -r requirements.txt
 ```
 
 ## Configuration

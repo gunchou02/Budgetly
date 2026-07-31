@@ -17,6 +17,9 @@
   <img src="https://img.shields.io/badge/Prisma-7-2D3748?logo=prisma&logoColor=white" alt="Prisma 7" />
   <img src="https://img.shields.io/badge/FastAPI-009688?logo=fastapi&logoColor=white" alt="FastAPI" />
   <img src="https://img.shields.io/badge/Docker-2496ED?logo=docker&logoColor=white" alt="Docker" />
+  <a href="https://github.com/gunchou02/Budgetly/actions/workflows/ci.yml">
+    <img src="https://github.com/gunchou02/Budgetly/actions/workflows/ci.yml/badge.svg" alt="CI status" />
+  </a>
 </p>
 
 <p align="center">
@@ -142,12 +145,14 @@ authenticated user's data and sends a bounded internal request.
 | File storage | Local private volume / private Vercel Blob |
 | Background work | Next.js `after()` / optional Vercel Queues |
 | Development | Docker Compose |
+| CI and security | GitHub Actions, Dependabot, npm audit, pip-audit |
 | Production target | Vercel + Neon |
 
 ## Project Structure
 
 ```text
 Budgetly/
+├── .github/                 # CI workflow and dependency updates
 ├── frontend/
 │   ├── prisma/               # PostgreSQL schema and migrations
 │   ├── src/app/api/          # Browser-facing Route Handlers
@@ -222,14 +227,18 @@ docker compose up -d --build ai-service
 | TypeScript | `docker compose run --rm --no-deps frontend npm run typecheck` |
 | Unit tests | `docker compose run --rm --no-deps frontend npm run test:run` |
 | Production build | `docker compose run --rm --no-deps frontend npm run build` |
+| npm production audit | `docker compose run --rm --no-deps frontend npm audit --omit=dev --audit-level=high` |
 | API integration | `docker compose run --rm --no-deps -e BUDGETLY_INTEGRATION_BASE_URL=http://frontend:5173 frontend npm run test:integration` |
 | FastAPI lint | `docker compose exec ai-service ruff check .` |
 | FastAPI tests | `docker compose exec ai-service pytest` |
+| Python production audit | `docker compose exec ai-service pip-audit --cache-dir /tmp/pip-audit -r requirements.txt` |
 | Migration status | `docker compose exec frontend npm run db:status` |
 
 The integration scenario covers registration, default categories, budget
 uniqueness, expense and subscription totals, cross-user access denial, AI
 insights, receipt analysis, one-time confirmation, and image cleanup.
+GitHub Actions runs the same quality and security gates for every pull request
+and every push to `main`.
 
 ## Security Decisions
 
@@ -243,6 +252,9 @@ insights, receipt analysis, one-time confirmation, and image cleanup.
 - FastAPI analysis routes require a shared internal service token.
 - AI reports and receipt uploads use database-backed rate limits.
 - OpenAI is optional, cacheable, and disabled by default locally.
+- CI rejects high or critical npm production advisories.
+- Python production requirements are checked against known vulnerability data.
+- Dependabot tracks npm, pip, GitHub Actions, and Docker updates weekly.
 
 ## Deployment
 
