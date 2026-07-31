@@ -264,6 +264,8 @@ The production design uses two Vercel projects from this repository:
 1. `frontend` for Next.js and the browser-facing API
 2. `ai-service` for the internal FastAPI function
 
+Both projects deploy from `main` through their GitHub integration.
+
 Neon is connected to the frontend project. The same private Vercel Blob store
 is connected to both projects so FastAPI can read receipt images without
 forwarding large multipart bodies between Functions.
