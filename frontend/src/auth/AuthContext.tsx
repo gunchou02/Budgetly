@@ -1,5 +1,6 @@
 'use client';
 
+import { isAxiosError } from 'axios';
 import { createContext, useContext, useEffect, useState, type ReactNode } from 'react';
 import { apiClient } from '@/api/client';
 import type { ApiEnvelope, AuthResponse, User } from '@/types/api';
@@ -18,6 +19,7 @@ interface AuthContextValue {
   isAuthenticated: boolean;
   isBootstrapping: boolean;
   login: (payload: LoginPayload) => Promise<void>;
+  loginAsGuest: () => Promise<void>;
   logout: () => Promise<void>;
   register: (payload: RegisterPayload) => Promise<void>;
   user: User | null;
@@ -31,6 +33,16 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   useEffect(() => {
     let isActive = true;
+    const responseInterceptor = apiClient.interceptors.response.use(
+      (response) => response,
+      (error: unknown) => {
+        if (isActive && isAxiosError(error) && error.response?.status === 401) {
+          setUser(null);
+        }
+
+        return Promise.reject(error);
+      },
+    );
 
     window.localStorage.removeItem('budgetly_token');
 
@@ -54,8 +66,34 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
     return () => {
       isActive = false;
+      apiClient.interceptors.response.eject(responseInterceptor);
     };
   }, []);
+
+  useEffect(() => {
+    if (!user?.is_guest || !user.guest_expires_at) {
+      return;
+    }
+
+    const expiresAt = new Date(user.guest_expires_at).getTime();
+
+    function expireGuestSession() {
+      if (Date.now() >= expiresAt) {
+        setUser(null);
+      }
+    }
+
+    const timeoutId = window.setTimeout(
+      expireGuestSession,
+      Math.max(0, expiresAt - Date.now()),
+    );
+    document.addEventListener('visibilitychange', expireGuestSession);
+
+    return () => {
+      window.clearTimeout(timeoutId);
+      document.removeEventListener('visibilitychange', expireGuestSession);
+    };
+  }, [user]);
 
   function persistSession(response: ApiEnvelope<AuthResponse>) {
     setUser(response.data.user);
@@ -71,8 +109,13 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     persistSession(response.data);
   }
 
+  async function loginAsGuest() {
+    const response = await apiClient.post<ApiEnvelope<AuthResponse>>('/guest', {});
+    persistSession(response.data);
+  }
+
   async function logout() {
-    await apiClient.post('/logout').catch(() => undefined);
+    await apiClient.post('/logout', {});
     setUser(null);
   }
 
@@ -80,6 +123,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     isAuthenticated: Boolean(user),
     isBootstrapping,
     login,
+    loginAsGuest,
     logout,
     register,
     user,

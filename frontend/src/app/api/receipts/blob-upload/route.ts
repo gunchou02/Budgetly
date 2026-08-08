@@ -3,9 +3,10 @@ import {
   type HandleUploadBody,
 } from '@vercel/blob/client';
 import { z } from 'zod';
-import { requireUser } from '@/server/auth';
+import { requireMember } from '@/server/auth';
 import { RECEIPT_MAX_BYTES } from '@/server/config';
 import { ApiError, apiHandler } from '@/server/http';
+import { consumeUserAndAddressRateLimits } from '@/server/rate-limit';
 import { jsonBody } from '@/server/validation';
 
 const clientPayloadSchema = z.object({
@@ -18,7 +19,25 @@ export const POST = apiHandler(async (request: Request) => {
     request,
     body,
     onBeforeGenerateToken: async (pathname, clientPayload) => {
-      const user = await requireUser();
+      const user = await requireMember();
+
+      await consumeUserAndAddressRateLimits({
+        addressLimit: 20,
+        request,
+        scope: 'receipt-upload-token',
+        userId: user.id,
+        userLimit: 10,
+        windowSeconds: 60,
+      });
+      await consumeUserAndAddressRateLimits({
+        addressLimit: 50,
+        request,
+        scope: 'receipt-upload-token-daily',
+        userId: user.id,
+        userLimit: 20,
+        windowSeconds: 60 * 60 * 24,
+      });
+
       let parsedPayload: unknown;
 
       try {

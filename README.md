@@ -46,8 +46,8 @@ workflow.
 > tablet, and mobile.
 
 ```text
-Create account -> Set monthly budget -> Add or scan expenses
--> Review dashboard -> Understand spending patterns
+Try as a guest or create an account -> Set monthly budget
+-> Add or scan expenses -> Review dashboard -> Understand spending patterns
 ```
 
 ## Refreshed Product Preview
@@ -78,6 +78,7 @@ form behavior, and mobile touch targets were also verified in the browser.
 
 | Area | What users can do |
 | --- | --- |
+| Guest mode | Try core budgeting flows for 24 hours with isolated temporary data and no registration; AI and receipt processing stay member-only |
 | Dashboard | See remaining money, budget pace, daily allowance, selected-day spending, and upcoming fixed costs |
 | Monthly budget | Set one JPY budget per month and track usage and remaining money |
 | Expenses | Add quickly by hand or receipt, then edit, delete, filter, and review spending by date |
@@ -246,6 +247,10 @@ and every push to `main`.
 - Passwords use bcrypt and enforce its 72-byte safe input boundary.
 - Session tokens are random; only SHA-256 hashes are stored in PostgreSQL.
 - Production cookies are `HttpOnly`, `Secure`, and `SameSite=Lax`.
+- Each guest receives an isolated temporary user and 24-hour session; guest data is removed on exit and expired accounts are cleaned by a protected daily job.
+- Guest entry and registration are address-rate-limited using an HMAC pseudonym, without storing the raw proxy-provided address.
+- Guest CRUD records have bounded quotas, and the daily cleanup also removes expired rate-limit buckets.
+- Receipt OCR and generated AI insights require a member account; their costly entry points are limited by both user and address. This keeps the guest path free of external Blob and AI resources.
 - Every product query includes the authenticated user's ID.
 - Cross-user object IDs return `404`.
 - PostgreSQL constraints protect amounts, dates, uniqueness, and file size.

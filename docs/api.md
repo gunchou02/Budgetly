@@ -52,13 +52,50 @@ UTF-8 bytes, matching bcrypt's safe input boundary.
 
 Returns `200` and sets the session cookie.
 
+### `POST /guest`
+
+Send an exact empty JSON object with `Content-Type: application/json`:
+
+```json
+{}
+```
+
+Returns `201`, creates an isolated temporary user and session, and sets the
+session cookie to expire in 24 hours. Guest entry returns `409` when a session
+already exists, `415` for a non-JSON request, and `429` when the address limit
+is exceeded. Guests can use budgets, manual expenses, subscriptions, the
+dashboard, and deterministic reports; receipt OCR and generated AI insights
+require a member account.
+
 ### `POST /logout`
 
-Deletes the current database session and expires the cookie.
+Send an exact empty JSON object with `Content-Type: application/json`:
+
+```json
+{}
+```
+
+Member logout deletes the current database session. Guest logout deletes the
+temporary user and all guest-owned database records. Both expire the cookie.
 
 ### `GET /me`
 
-Returns the authenticated public user.
+Returns the authenticated public user:
+
+```json
+{
+  "data": {
+    "id": 1,
+    "name": "ゲスト",
+    "email": null,
+    "is_guest": true,
+    "guest_expires_at": "2026-08-10T03:15:00.000Z"
+  }
+}
+```
+
+Member responses use the registered email, `is_guest: false`, and
+`guest_expires_at: null`.
 
 ## Errors
 
@@ -75,9 +112,11 @@ Returns the authenticated public user.
 | --- | --- |
 | `400` | Invalid JSON or malformed request |
 | `401` | Missing or expired session |
+| `403` | Authenticated account cannot use a member-only feature |
 | `404` | Missing resource or resource owned by another user |
 | `409` | Receipt state or idempotency conflict |
 | `413` | Receipt image exceeds the upload size limit |
+| `415` | Endpoint requires an `application/json` request |
 | `422` | Validation or unique-domain conflict |
 | `429` | Rate limit exceeded |
 | `500` | Unexpected server error |
@@ -240,11 +279,13 @@ Returns all 12 monthly totals for the selected year.
 
 Returns a structured Japanese AI spending report. Next.js calculates the
 financial facts, rate-limits the request, calls FastAPI, validates the response,
-and caches it. The fake provider is used by default in local development.
+and caches it. A member account is required. The fake provider is used by
+default in local development.
 
 ## Receipts
 
 Allowed images are JPEG, PNG, and WebP up to 5 MB and 40 megapixels.
+All receipt routes require a member account.
 
 ### `POST /receipts`
 
@@ -261,8 +302,9 @@ short-lived token only for an authenticated user's path:
 receipts/{userId}/{jobId}.{jpg|png|webp}
 ```
 
-This route is part of the frontend upload implementation and should normally
-not be called manually.
+Token issuance is limited per minute and per day for both the member and client
+address. This route is part of the frontend upload implementation and should
+normally not be called manually.
 
 ### `POST /receipts/blob`
 

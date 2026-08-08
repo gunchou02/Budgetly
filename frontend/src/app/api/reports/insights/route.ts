@@ -1,6 +1,6 @@
-import { requireUser } from '@/server/auth';
+import { requireMember } from '@/server/auth';
 import { apiHandler, dataResponse } from '@/server/http';
-import { consumeRateLimit } from '@/server/rate-limit';
+import { consumeUserAndAddressRateLimits } from '@/server/rate-limit';
 import { buildSpendingInsights } from '@/server/reports';
 import {
   searchParams,
@@ -8,12 +8,15 @@ import {
 } from '@/server/validation';
 
 export const GET = apiHandler(async (request: Request) => {
-  const user = await requireUser();
+  const user = await requireMember();
   const filter = yearMonthSchema.parse(searchParams(request));
 
-  await consumeRateLimit({
-    key: `ai-report:${user.id}`,
-    limit: 10,
+  await consumeUserAndAddressRateLimits({
+    addressLimit: 20,
+    request,
+    scope: 'ai-report',
+    userId: user.id,
+    userLimit: 10,
     windowSeconds: 60,
   });
 

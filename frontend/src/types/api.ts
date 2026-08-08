@@ -5,7 +5,9 @@ export interface ApiEnvelope<T> {
 export interface User {
   id: number;
   name: string;
-  email: string;
+  email: string | null;
+  is_guest: boolean;
+  guest_expires_at: string | null;
 }
 
 export type CategoryType = 'expense' | 'fixed';

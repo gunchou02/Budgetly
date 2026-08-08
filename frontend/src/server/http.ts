@@ -7,6 +7,7 @@ export class ApiError extends Error {
     message: string,
     public readonly errors?: Record<string, string[]>,
     public readonly code?: string,
+    public readonly headers?: HeadersInit,
   ) {
     super(message);
   }
@@ -37,7 +38,7 @@ export function errorResponse(error: unknown): Response {
         ...(error.errors ? { errors: error.errors } : {}),
         ...(error.code ? { error: { code: error.code } } : {}),
       },
-      { status: error.status },
+      { headers: error.headers, status: error.status },
     );
   }
 

@@ -77,6 +77,8 @@ export const loginSchema = z.object({
   ),
 });
 
+export const emptyJsonSchema = z.strictObject({});
+
 export const yearMonthSchema = z.object({
   year: yearSchema,
   month: monthSchema,
@@ -157,6 +159,20 @@ export async function jsonBody(request: Request): Promise<unknown> {
   } catch {
     throw new ApiError(400, 'JSON形式のリクエストを送信してください。');
   }
+}
+
+export async function emptyJsonBody(request: Request): Promise<void> {
+  const mediaType = request.headers
+    .get('content-type')
+    ?.split(';')[0]
+    ?.trim()
+    .toLowerCase();
+
+  if (mediaType !== 'application/json') {
+    throw new ApiError(415, 'JSON形式のリクエストを送信してください。');
+  }
+
+  emptyJsonSchema.parse(await jsonBody(request));
 }
 
 export function searchParams(request: Request): Record<string, string> {

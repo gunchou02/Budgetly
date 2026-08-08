@@ -129,6 +129,8 @@ DIRECT_URL=<direct-or-unpooled-neon-url>
 
 AI_SERVICE_URL=https://<ai-domain>
 AI_INTERNAL_API_TOKEN=<same-secret-as-ai-project>
+CRON_SECRET=<long-random-cron-secret>
+RATE_LIMIT_KEY_SECRET=<separate-long-random-secret>
 
 NEXT_PUBLIC_RECEIPT_UPLOAD_MODE=blob
 RECEIPT_STORAGE_DRIVER=vercel-blob
@@ -150,6 +152,17 @@ between the two services while preserving the 5 MB product upload limit.
 
 `NEXT_PUBLIC_RECEIPT_UPLOAD_MODE` is embedded during the frontend build, so
 redeploy after changing it.
+
+`frontend/vercel.json` invokes `/api/cron/guest-cleanup` daily at 18:15 UTC
+(03:15 JST). Vercel sends `CRON_SECRET` as a Bearer token; the route rejects
+requests when the secret is missing or does not match. Verify the production
+cron execution in deployment logs after enabling guest mode. The job removes
+expired guest accounts and expired rate-limit buckets in bounded batches.
+
+`RATE_LIMIT_KEY_SECRET` creates non-reversible HMAC pseudonyms for client
+addresses. Keep it separate from `CRON_SECRET`, do not expose it to the
+browser, and rotate it only as a planned security operation because rotation
+starts fresh address-rate-limit buckets.
 
 ## 4. Queue Choice
 
@@ -199,7 +212,7 @@ Verify in this order:
 
 1. FastAPI `/health` and `/ready`.
 2. Next.js `/api/health`.
-3. registration, cookie persistence, reload, and logout.
+3. registration, guest entry, cookie persistence, reload, guest exit, and logout.
 4. categories and one monthly budget.
 5. expense and subscription totals on the dashboard.
 6. category, annual, and AI report endpoints.
@@ -210,6 +223,8 @@ Verify in this order:
 11. private Blob objects are not publicly readable.
 12. application logs contain no credentials, session tokens, or full receipt
     contents.
+13. the guest cleanup cron rejects an invalid token and deletes an expired
+    test guest when invoked with the production cron authorization.
 
 ## 7. CI Recommendation
 
@@ -243,6 +258,11 @@ every preview build.
 - Switch `BUDGETLY_QUEUE_DRIVER` back to `inline` if the queue is unavailable.
 - Roll back the Vercel frontend deployment only when its database schema is
   backward compatible.
+- Guest mode is semantically incompatible with releases that do not understand
+  `isGuest`. Never instant-roll back to such a release while guest sessions are
+  active: first stop new guest entry with a compatible deployment or firewall
+  rule, delete or wait out active guest sessions, and then roll back. Otherwise
+  an older release can treat a valid guest session as a member session.
 - Restore the database from a verified Neon backup when a rollback requires
   data recovery; never depend on an application rollback to reverse a schema
   change.

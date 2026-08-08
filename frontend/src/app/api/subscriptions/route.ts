@@ -2,6 +2,10 @@ import { z } from 'zod';
 import { requireUser } from '@/server/auth';
 import { parseDate } from '@/server/dates';
 import { getDb } from '@/server/db';
+import {
+  consumeGuestMutationRateLimit,
+  enforceGuestResourceLimit,
+} from '@/server/guest';
 import { apiHandler, dataResponse } from '@/server/http';
 import { requireOwnedCategory } from '@/server/ownership';
 import { serializeSubscription } from '@/server/serializers';
@@ -38,23 +42,28 @@ export const GET = apiHandler(async (request: Request) => {
 
 export const POST = apiHandler(async (request: Request) => {
   const user = await requireUser();
+  await consumeGuestMutationRateLimit(user, request);
   const input = subscriptionSchema.parse(await jsonBody(request));
 
   await requireOwnedCategory(user.id, input.category_id);
 
-  const subscription = await getDb().subscription.create({
-    data: {
-      userId: user.id,
-      categoryId: input.category_id,
-      name: input.name,
-      amount: input.amount,
-      billingCycle: input.billing_cycle,
-      billingDay: input.billing_day,
-      startedAt: parseDate(input.started_at),
-      canceledAt: input.canceled_at ? parseDate(input.canceled_at) : null,
-      memo: input.memo,
-    },
-    include: { category: true },
+  const subscription = await getDb().$transaction(async (transaction) => {
+    await enforceGuestResourceLimit(user, 'subscription', transaction);
+
+    return transaction.subscription.create({
+      data: {
+        userId: user.id,
+        categoryId: input.category_id,
+        name: input.name,
+        amount: input.amount,
+        billingCycle: input.billing_cycle,
+        billingDay: input.billing_day,
+        startedAt: parseDate(input.started_at),
+        canceledAt: input.canceled_at ? parseDate(input.canceled_at) : null,
+        memo: input.memo,
+      },
+      include: { category: true },
+    });
   });
 
   return dataResponse(serializeSubscription(subscription), 201);

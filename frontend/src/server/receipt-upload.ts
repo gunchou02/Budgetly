@@ -1,4 +1,4 @@
-import { imageSize } from 'image-size';
+import sharp from 'sharp';
 import {
   RECEIPT_ALLOWED_MIME_TYPES,
   RECEIPT_MAX_BYTES,
@@ -55,26 +55,32 @@ export async function validateReceiptImage(
   }
 
   const buffer = Buffer.from(await file.arrayBuffer());
-  let dimensions: ReturnType<typeof imageSize>;
+  let metadata: Awaited<ReturnType<ReturnType<typeof sharp>['metadata']>>;
 
   try {
-    dimensions = imageSize(buffer);
+    metadata = await sharp(buffer, {
+      limitInputChannels: 4,
+      limitInputPixels: RECEIPT_MAX_PIXELS,
+      sequentialRead: true,
+    }).metadata();
   } catch {
     throw imageError('JPEG、PNG、WebP画像を選択してください。');
   }
 
-  const detectedType = dimensions.type as keyof typeof MIME_BY_IMAGE_TYPE;
+  const detectedType = (
+    metadata.format === 'jpeg' ? 'jpg' : metadata.format
+  ) as keyof typeof MIME_BY_IMAGE_TYPE;
   const mimeType = MIME_BY_IMAGE_TYPE[detectedType];
 
   if (!mimeType || (file.type && file.type !== mimeType)) {
     throw imageError('JPEG、PNG、WebP画像を選択してください。');
   }
 
-  if (!dimensions.width || !dimensions.height) {
+  if (!metadata.width || !metadata.height) {
     throw imageError('画像のサイズを確認できません。');
   }
 
-  if (dimensions.width * dimensions.height > RECEIPT_MAX_PIXELS) {
+  if (metadata.width * metadata.height > RECEIPT_MAX_PIXELS) {
     throw imageError('画像の解像度が大きすぎます。');
   }
 

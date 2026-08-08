@@ -1,5 +1,6 @@
 import { requireUser } from '@/server/auth';
 import { getDb } from '@/server/db';
+import { consumeGuestMutationRateLimit } from '@/server/guest';
 import { apiHandler, dataResponse } from '@/server/http';
 import { notFound } from '@/server/ownership';
 import { serializeBudget } from '@/server/serializers';
@@ -12,6 +13,7 @@ interface RouteContext {
 export const PUT = apiHandler(
   async (request: Request, context: RouteContext) => {
     const user = await requireUser();
+    await consumeGuestMutationRateLimit(user, request);
     const id = routeId((await context.params).budget);
     const input = budgetSchema.parse(await jsonBody(request));
 

@@ -1,14 +1,14 @@
 import { del, get } from '@vercel/blob';
 import { Prisma } from '@/generated/prisma/client';
 import { z } from 'zod';
-import { requireUser } from '@/server/auth';
+import { requireMember } from '@/server/auth';
 import { getDb } from '@/server/db';
 import {
   ApiError,
   apiHandler,
   dataResponse,
 } from '@/server/http';
-import { consumeRateLimit } from '@/server/rate-limit';
+import { consumeUserAndAddressRateLimits } from '@/server/rate-limit';
 import { enqueueReceipt } from '@/server/receipt-queue';
 import { validateReceiptImage } from '@/server/receipt-upload';
 import { serializeReceipt } from '@/server/serializers';
@@ -23,7 +23,7 @@ const finalizeBlobSchema = z.object({
 export const maxDuration = 60;
 
 export const POST = apiHandler(async (request: Request) => {
-  const user = await requireUser();
+  const user = await requireMember();
   const input = finalizeBlobSchema.parse(await jsonBody(request));
   const expectedPath = new RegExp(
     `^receipts/${user.id}/${input.job_id}\\.(jpg|png|webp)$`,
@@ -33,9 +33,12 @@ export const POST = apiHandler(async (request: Request) => {
     throw new ApiError(403, 'This receipt upload path is not allowed.');
   }
 
-  await consumeRateLimit({
-    key: `receipt-upload:${user.id}`,
-    limit: 10,
+  await consumeUserAndAddressRateLimits({
+    addressLimit: 20,
+    request,
+    scope: 'receipt-upload',
+    userId: user.id,
+    userLimit: 10,
     windowSeconds: 60,
   });
 

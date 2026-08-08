@@ -30,6 +30,8 @@ model User {
   name            String          @db.VarChar(255)
   email           String          @unique @db.VarChar(255)
   passwordHash    String          @map("password_hash") @db.VarChar(255)
+  isGuest         Boolean         @default(false) @map("is_guest")
+  guestExpiresAt  DateTime?       @map("guest_expires_at")
   emailVerifiedAt DateTime?       @map("email_verified_at")
   createdAt       DateTime        @default(now()) @map("created_at")
   updatedAt       DateTime        @updatedAt @map("updated_at")
@@ -41,6 +43,7 @@ model User {
   receipts        Receipt[]
   reportCaches    AiReportCache[]
 
+  @@index([isGuest, guestExpiresAt])
   @@map("users")
 }
 

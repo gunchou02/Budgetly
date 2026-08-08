@@ -1,11 +1,14 @@
+import dynamic from 'next/dynamic';
 import { PenLine, ReceiptText } from 'lucide-react';
 import { useEffect, useRef, useState, type FormEvent } from 'react';
+import { useAuth } from '@/auth/AuthContext';
 import { getApiErrorMessage } from '../api/client';
 import { getDateValue } from '../utils/formatters';
 import AmountInput from './AmountInput';
-import ReceiptExpenseFlow from './ReceiptExpenseFlow';
 import type { Category, Expense, ExpensePayload, SubscriptionPayload } from '@/types/api';
 import type { FormFieldEvent } from '@/types/forms';
+
+const ReceiptExpenseFlow = dynamic(() => import('./ReceiptExpenseFlow'));
 
 interface QuickExpenseForm {
   category_id: number | string;
@@ -43,6 +46,8 @@ function QuickExpensePanel({
   mobileExpanded,
   onMobileExpandedChange,
 }: QuickExpensePanelProps) {
+  const { user } = useAuth();
+  const isGuest = user?.is_guest ?? false;
   const defaultCategoryId = categories[0]?.id ?? '';
   const [entryMode, setEntryMode] = useState<'manual' | 'receipt'>('manual');
   const [editingId, setEditingId] = useState<number | null>(null);
@@ -208,7 +213,7 @@ function QuickExpensePanel({
           </div>
         </div>
 
-        {!editingId && (
+        {!editingId && !isGuest && (
           <div className="entry-mode-control" role="group" aria-label="支出の入力方法">
             <button
               type="button"
@@ -237,6 +242,12 @@ function QuickExpensePanel({
               レシート
             </button>
           </div>
+        )}
+
+        {!editingId && isGuest && (
+          <p className="guest-feature-note">
+            ゲストモードでは手入力を利用できます。レシート解析はアカウント利用時に使えます。
+          </p>
         )}
 
         {(entryMode === 'manual' || editingId) && (
@@ -329,13 +340,15 @@ function QuickExpensePanel({
           </form>
         )}
 
-        <div className={entryMode === 'receipt' && !editingId ? '' : 'is-hidden'}>
-          <ReceiptExpenseFlow
-            categories={categories}
-            selectedDate={selectedDate}
-            onConfirmed={onReceiptConfirmed}
-          />
-        </div>
+        {!isGuest && (
+          <div className={entryMode === 'receipt' && !editingId ? '' : 'is-hidden'}>
+            <ReceiptExpenseFlow
+              categories={categories}
+              selectedDate={selectedDate}
+              onConfirmed={onReceiptConfirmed}
+            />
+          </div>
+        )}
       </div>
     </section>
   );

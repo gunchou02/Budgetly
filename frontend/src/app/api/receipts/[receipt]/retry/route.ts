@@ -1,5 +1,5 @@
 import { Prisma, ReceiptStatus } from '@/generated/prisma/client';
-import { requireUser } from '@/server/auth';
+import { requireMember } from '@/server/auth';
 import { getDb } from '@/server/db';
 import {
   ApiError,
@@ -7,7 +7,7 @@ import {
   dataResponse,
 } from '@/server/http';
 import { notFound } from '@/server/ownership';
-import { consumeRateLimit } from '@/server/rate-limit';
+import { consumeUserAndAddressRateLimits } from '@/server/rate-limit';
 import { enqueueReceipt } from '@/server/receipt-queue';
 import { serializeReceipt } from '@/server/serializers';
 import { routeId } from '@/server/validation';
@@ -17,13 +17,16 @@ interface RouteContext {
 }
 
 export const POST = apiHandler(
-  async (_request: Request, context: RouteContext) => {
-    const user = await requireUser();
+  async (request: Request, context: RouteContext) => {
+    const user = await requireMember();
     const id = routeId((await context.params).receipt);
 
-    await consumeRateLimit({
-      key: `receipt-upload:${user.id}`,
-      limit: 10,
+    await consumeUserAndAddressRateLimits({
+      addressLimit: 20,
+      request,
+      scope: 'receipt-upload',
+      userId: user.id,
+      userLimit: 10,
       windowSeconds: 60,
     });
 

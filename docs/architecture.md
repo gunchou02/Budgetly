@@ -83,13 +83,26 @@ enables the `budgetly-receipts` Vercel Queue for durable retries.
 
 ## Authentication Flow
 
-1. The browser posts credentials to `/api/register` or `/api/login`.
-2. Next.js verifies the password with bcrypt.
+1. The browser posts credentials to `/api/register` or `/api/login`, or sends
+   an empty JSON request to `/api/guest`.
+2. Member login verifies the password with bcrypt. Guest entry creates a
+   separate temporary user with its own default categories and a 24-hour
+   expiration; guests never share a demo account.
 3. Next.js creates a cryptographically random token.
 4. Only its SHA-256 hash is inserted into `sessions`.
 5. The raw token is returned only as an `HttpOnly` cookie.
-6. Protected routes hash the cookie and load a non-expired session.
-7. Logout deletes the database session and expires the cookie.
+6. Protected routes hash the cookie and load a non-expired session. The same
+   `userId` ownership checks isolate both member and guest data.
+7. Member logout deletes the database session. Guest exit also deletes the
+   temporary database records before expiring the cookie.
+8. Expired guest accounts are cleaned in bounded background batches when new
+   guest sessions are created and by a protected daily Vercel Cron Job.
+
+Guest mode includes budgets, manually entered expenses, subscriptions, the
+dashboard, and deterministic reports. Receipt OCR and generated AI insights
+require a member account. Guest CRUD quotas keep temporary-account cleanup
+bounded, while member-only cost endpoints use both user and address limits.
+This keeps the guest path free of external Blob and AI resources.
 
 ## Receipt Flow
 
@@ -140,10 +153,19 @@ calculated facts and does not become the source of truth for money.
 - Passwords are bcrypt hashes.
 - Session cookies are `HttpOnly`, `SameSite=Lax`, and production `Secure`.
 - Object queries include `userId`; cross-user IDs return `404`.
+- Guest creation and registration are rate-limited using an HMAC pseudonym of
+  the proxy-provided client address, and an authenticated session cannot be
+  replaced through the guest endpoint. Raw addresses are not stored.
+- Guest CRUD resources have fixed quotas so temporary data remains bounded.
+- A `CRON_SECRET`-protected daily cleanup route deletes expired guest rows and
+  expired rate-limit buckets in bounded, concurrency-safe batches.
+- Guest accounts cannot create receipt objects or generated AI reports, so
+  database cascade deletion cannot orphan guest-owned Blob files.
 - Monetary values are positive JPY integers.
 - Database check and unique constraints protect core invariants.
 - Receipt formats are limited to JPEG, PNG, and WebP, up to 5 MB and 40 MP.
-- Blob upload tokens are authenticated, path-scoped, and single-job scoped.
+- Blob upload tokens are authenticated, path-scoped, single-job scoped, and
+  rate-limited before storage can be allocated.
 - FastAPI uses a shared internal token and strict response schemas.
 - Provider timeouts, retries, failed states, and manual retry endpoints are
   explicit.

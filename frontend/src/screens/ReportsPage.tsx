@@ -3,6 +3,7 @@
 import { useEffect, useState, type ChangeEvent } from 'react';
 import { CircleAlert, CircleCheck, Info, Lightbulb, type LucideIcon } from 'lucide-react';
 import { Bar, BarChart, CartesianGrid, ResponsiveContainer, Tooltip, XAxis, YAxis } from 'recharts';
+import { useAuth } from '@/auth/AuthContext';
 import { apiClient, getApiErrorMessage } from '../api/client';
 import { formatYen, getCurrentYearMonth } from '../utils/formatters';
 import type {
@@ -20,6 +21,8 @@ const insightIcons: Record<SpendingInsightSeverity, LucideIcon> = {
 };
 
 function ReportsPage() {
+  const { user } = useAuth();
+  const isGuest = user?.is_guest ?? false;
   const current = getCurrentYearMonth();
   const [filters, setFilters] = useState({
     year: current.year,
@@ -67,6 +70,12 @@ function ReportsPage() {
     async function fetchSpendingInsight() {
       setSpendingInsight(null);
       setInsightError('');
+
+      if (isGuest) {
+        setIsInsightLoading(false);
+        return;
+      }
+
       setIsInsightLoading(true);
 
       try {
@@ -97,7 +106,7 @@ function ReportsPage() {
     return () => {
       isActive = false;
     };
-  }, [filters]);
+  }, [filters, isGuest]);
 
   function updateFilter(event: ChangeEvent<HTMLInputElement>) {
     setFilters((currentFilters) => ({
@@ -172,17 +181,22 @@ function ReportsPage() {
           <h2>今月の気づき</h2>
         </div>
         <p className="muted-text ai-report-source">登録済みの支出と固定費をもとにしています。</p>
-        {isInsightLoading && (
+        {isGuest && (
+          <p className="guest-feature-note">
+            AIによる気づきはアカウント利用時に使えます。月別・カテゴリ別の集計はゲストでも確認できます。
+          </p>
+        )}
+        {!isGuest && isInsightLoading && (
           <p className="muted-text" role="status">
             分析中...
           </p>
         )}
-        {insightError && (
+        {!isGuest && insightError && (
           <p className="form-error" role="alert">
             {insightError}
           </p>
         )}
-        {spendingInsight && (
+        {!isGuest && spendingInsight && (
           <div className="ai-report-content">
             <p className="ai-report-summary">{spendingInsight.summary}</p>
             {spendingInsight.highlights.length > 0 && (

@@ -139,11 +139,27 @@ select {
   font-size: 13px;
 }
 
-.sidebar-footer > span {
-  overflow: hidden;
+.sidebar-account {
+  display: grid;
+  gap: 3px;
+  min-width: 0;
   padding: 0 10px;
+}
+
+.sidebar-account strong,
+.sidebar-account span {
+  overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
+}
+
+.sidebar-account strong {
+  color: var(--budgetly-text);
+  font-size: 13px;
+}
+
+.sidebar-account span {
+  font-size: 11px;
 }
 
 .nav-link {
@@ -204,6 +220,7 @@ select {
 .auth-page {
   display: grid;
   min-height: 100vh;
+  min-height: 100dvh;
   place-items: center;
   padding: 24px;
 }
@@ -230,6 +247,81 @@ select {
 .auth-switch a {
   color: #3730a3;
   font-weight: 700;
+}
+
+.guest-entry {
+  display: grid;
+  gap: 12px;
+}
+
+.auth-divider {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto minmax(0, 1fr);
+  align-items: center;
+  gap: 12px;
+  color: var(--budgetly-muted);
+  font-size: 12px;
+}
+
+.auth-divider::before,
+.auth-divider::after {
+  height: 1px;
+  background: var(--budgetly-line);
+  content: "";
+}
+
+.auth-guest-button {
+  width: 100%;
+}
+
+.guest-description {
+  margin: 0;
+  color: var(--budgetly-muted);
+  font-size: 12px;
+  line-height: 1.6;
+  text-align: center;
+}
+
+.guest-mode-notice {
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
+  margin-bottom: 20px;
+  border: 1px solid #d8d3f2;
+  border-radius: var(--budgetly-radius-md);
+  background: var(--budgetly-accent-soft);
+  padding: 12px 14px;
+  color: #443a9c;
+}
+
+.guest-mode-notice > svg {
+  flex: 0 0 auto;
+  margin-top: 1px;
+}
+
+.guest-mode-notice p {
+  display: grid;
+  gap: 2px;
+  margin: 0;
+}
+
+.guest-mode-notice span {
+  font-size: 12px;
+  line-height: 1.5;
+}
+
+.guest-feature-note {
+  margin: 0;
+  border-left: 3px solid var(--budgetly-accent-light);
+  background: #f7f5fd;
+  padding: 10px 12px;
+  color: #544d78;
+  font-size: 12px;
+  line-height: 1.6;
+}
+
+.shell-error {
+  margin-bottom: 20px;
 }
 
 .page-stack {
@@ -1790,6 +1882,15 @@ button:disabled {
 }
 
 @media (max-width: 600px) {
+  .auth-page {
+    padding: 16px;
+  }
+
+  .auth-panel {
+    gap: 20px;
+    padding: 22px 20px;
+  }
+
   .mobile-header {
     grid-template-columns: minmax(0, 1fr) 44px;
   }

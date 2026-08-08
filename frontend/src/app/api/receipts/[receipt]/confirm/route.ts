@@ -1,5 +1,5 @@
 import { Prisma, ReceiptStatus } from '@/generated/prisma/client';
-import { requireUser } from '@/server/auth';
+import { requireMember } from '@/server/auth';
 import { parseDate } from '@/server/dates';
 import { getDb } from '@/server/db';
 import {
@@ -20,7 +20,7 @@ interface RouteContext {
 
 export const POST = apiHandler(
   async (request: Request, context: RouteContext) => {
-    const user = await requireUser();
+    const user = await requireMember();
     const id = routeId((await context.params).receipt);
     const input = expenseSchema.parse(await jsonBody(request));
 

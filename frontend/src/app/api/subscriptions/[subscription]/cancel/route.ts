@@ -5,6 +5,7 @@ import {
   todayDateStringInAppTimeZone,
 } from '@/server/dates';
 import { getDb } from '@/server/db';
+import { consumeGuestMutationRateLimit } from '@/server/guest';
 import { ApiError, apiHandler, dataResponse } from '@/server/http';
 import { notFound } from '@/server/ownership';
 import { serializeSubscription } from '@/server/serializers';
@@ -21,6 +22,7 @@ interface RouteContext {
 export const PATCH = apiHandler(
   async (request: Request, context: RouteContext) => {
     const user = await requireUser();
+    await consumeGuestMutationRateLimit(user, request);
     const id = routeId((await context.params).subscription);
     const input = cancelSubscriptionSchema.parse(await jsonBody(request));
     const db = getDb();

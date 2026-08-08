@@ -1,4 +1,4 @@
-import { requireUser } from '@/server/auth';
+import { requireMember } from '@/server/auth';
 import { getDb } from '@/server/db';
 import { apiHandler, dataResponse } from '@/server/http';
 import { notFound } from '@/server/ownership';
@@ -12,7 +12,7 @@ interface RouteContext {
 
 export const GET = apiHandler(
   async (_request: Request, context: RouteContext) => {
-    const user = await requireUser();
+    const user = await requireMember();
     const id = routeId((await context.params).receipt);
     const receipt = await getDb().receipt.findFirst({
       where: { id, userId: user.id },
@@ -32,7 +32,7 @@ export const GET = apiHandler(
 
 export const DELETE = apiHandler(
   async (_request: Request, context: RouteContext) => {
-    const user = await requireUser();
+    const user = await requireMember();
     const id = routeId((await context.params).receipt);
     const receipt = await getDb().receipt.findFirst({
       where: { id, userId: user.id },

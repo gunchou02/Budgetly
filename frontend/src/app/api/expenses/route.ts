@@ -3,6 +3,10 @@ import { z } from 'zod';
 import { requireUser } from '@/server/auth';
 import { monthRange, parseDate } from '@/server/dates';
 import { getDb } from '@/server/db';
+import {
+  consumeGuestMutationRateLimit,
+  enforceGuestResourceLimit,
+} from '@/server/guest';
 import { apiHandler, dataResponse } from '@/server/http';
 import { requireOwnedCategory } from '@/server/ownership';
 import { serializeExpense } from '@/server/serializers';
@@ -58,20 +62,25 @@ export const GET = apiHandler(async (request: Request) => {
 
 export const POST = apiHandler(async (request: Request) => {
   const user = await requireUser();
+  await consumeGuestMutationRateLimit(user, request);
   const input = expenseSchema.parse(await jsonBody(request));
 
   await requireOwnedCategory(user.id, input.category_id);
 
-  const expense = await getDb().expense.create({
-    data: {
-      userId: user.id,
-      categoryId: input.category_id,
-      title: input.title,
-      amount: input.amount,
-      spentAt: parseDate(input.spent_at),
-      memo: input.memo,
-    },
-    include: { category: true },
+  const expense = await getDb().$transaction(async (transaction) => {
+    await enforceGuestResourceLimit(user, 'expense', transaction);
+
+    return transaction.expense.create({
+      data: {
+        userId: user.id,
+        categoryId: input.category_id,
+        title: input.title,
+        amount: input.amount,
+        spentAt: parseDate(input.spent_at),
+        memo: input.memo,
+      },
+      include: { category: true },
+    });
   });
 
   return dataResponse(serializeExpense(expense), 201);

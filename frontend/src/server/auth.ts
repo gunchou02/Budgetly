@@ -6,6 +6,7 @@ import {
   SESSION_TTL_SECONDS,
 } from '@/server/config';
 import { getDb } from '@/server/db';
+import { deleteGuestAccount } from '@/server/guest';
 import { ApiError } from '@/server/http';
 
 function hashSessionToken(token: string): string {
@@ -27,16 +28,18 @@ export function publicUser(user: User) {
   return {
     id: user.id,
     name: user.name,
-    email: user.email,
+    email: user.isGuest ? null : user.email,
+    is_guest: user.isGuest,
+    guest_expires_at: user.guestExpiresAt?.toISOString() ?? null,
   };
 }
 
 export async function createSessionRecord(
   userId: number,
   db: SessionWriter = getDb(),
+  expiresAt: Date = sessionExpiresAt(),
 ): Promise<NewSession> {
   const token = randomBytes(32).toString('base64url');
-  const expiresAt = sessionExpiresAt();
 
   await db.session.create({
     data: {
@@ -69,7 +72,19 @@ export async function deleteCurrentSession(): Promise<void> {
   const cookieStore = await cookies();
   const token = cookieStore.get(SESSION_COOKIE_NAME)?.value;
 
-  if (token) {
+  if (!token) {
+    cookieStore.delete(SESSION_COOKIE_NAME);
+    return;
+  }
+
+  const session = await getDb().session.findUnique({
+    where: { tokenHash: hashSessionToken(token) },
+    include: { user: true },
+  });
+
+  if (session?.user.isGuest) {
+    await deleteGuestAccount(session.user.id);
+  } else {
     await getDb().session.deleteMany({
       where: { tokenHash: hashSessionToken(token) },
     });
@@ -89,10 +104,18 @@ export async function currentUser(): Promise<User | null> {
     where: { tokenHash: hashSessionToken(token) },
     include: { user: true },
   });
+  const now = new Date();
+  const guestExpired =
+    session?.user.isGuest &&
+    (!session.user.guestExpiresAt || session.user.guestExpiresAt <= now);
 
-  if (!session || session.expiresAt <= new Date()) {
+  if (!session || session.expiresAt <= now || guestExpired) {
     if (session) {
-      await getDb().session.delete({ where: { id: session.id } });
+      if (session.user.isGuest) {
+        await deleteGuestAccount(session.user.id);
+      } else {
+        await getDb().session.delete({ where: { id: session.id } });
+      }
     }
     return null;
   }
@@ -105,6 +128,21 @@ export async function requireUser(): Promise<User> {
 
   if (!user) {
     throw new ApiError(401, 'Unauthenticated.');
+  }
+
+  return user;
+}
+
+export async function requireMember(): Promise<User> {
+  const user = await requireUser();
+
+  if (user.isGuest) {
+    throw new ApiError(
+      403,
+      'この機能はアカウント登録後に利用できます。',
+      undefined,
+      'member_account_required',
+    );
   }
 
   return user;

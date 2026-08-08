@@ -2,6 +2,10 @@ import { z } from 'zod';
 import { requireUser } from '@/server/auth';
 import { getDb } from '@/server/db';
 import { ensureDefaultCategories } from '@/server/default-categories';
+import {
+  consumeGuestMutationRateLimit,
+  enforceGuestResourceLimit,
+} from '@/server/guest';
 import { apiHandler, dataResponse } from '@/server/http';
 import { serializeCategory } from '@/server/serializers';
 import {
@@ -33,9 +37,12 @@ export const GET = apiHandler(async (request: Request) => {
 
 export const POST = apiHandler(async (request: Request) => {
   const user = await requireUser();
+  await consumeGuestMutationRateLimit(user, request);
   const input = categoryCreateSchema.parse(await jsonBody(request));
 
   const category = await getDb().$transaction(async (transaction) => {
+    await enforceGuestResourceLimit(user, 'category', transaction);
+
     const aggregate = await transaction.category.aggregate({
       where: { userId: user.id, type: input.type },
       _max: { sortOrder: true },

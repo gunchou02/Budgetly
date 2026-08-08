@@ -28,6 +28,8 @@ jobs:
       DIRECT_URL: postgresql://budgetly:secret@127.0.0.1:5432/budgetly?schema=public
       AI_SERVICE_URL: http://127.0.0.1:8000
       AI_INTERNAL_API_TOKEN: ci-internal-token
+      CRON_SECRET: ci-cron-secret
+      RATE_LIMIT_KEY_SECRET: ci-rate-limit-secret
       RECEIPT_STORAGE_DRIVER: local
       BUDGETLY_QUEUE_DRIVER: inline
     steps:
@@ -123,6 +125,8 @@ jobs:
       DIRECT_URL: postgresql://budgetly:secret@127.0.0.1:5432/budgetly?schema=public
       AI_SERVICE_URL: http://127.0.0.1:8000
       AI_INTERNAL_API_TOKEN: ci-internal-token
+      CRON_SECRET: ci-cron-secret
+      RATE_LIMIT_KEY_SECRET: ci-rate-limit-secret
       AI_ENVIRONMENT: test
       AI_RECEIPT_PROVIDER: fake
       AI_REPORT_PROVIDER: fake

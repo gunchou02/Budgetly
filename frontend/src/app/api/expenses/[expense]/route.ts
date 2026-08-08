@@ -1,6 +1,7 @@
 import { requireUser } from '@/server/auth';
 import { parseDate } from '@/server/dates';
 import { getDb } from '@/server/db';
+import { consumeGuestMutationRateLimit } from '@/server/guest';
 import { apiHandler, dataResponse } from '@/server/http';
 import {
   notFound,
@@ -33,6 +34,7 @@ export const GET = apiHandler(
 export const PUT = apiHandler(
   async (request: Request, context: RouteContext) => {
     const user = await requireUser();
+    await consumeGuestMutationRateLimit(user, request);
     const id = routeId((await context.params).expense);
     const input = expenseSchema.parse(await jsonBody(request));
     const db = getDb();
@@ -64,8 +66,9 @@ export const PUT = apiHandler(
 );
 
 export const DELETE = apiHandler(
-  async (_request: Request, context: RouteContext) => {
+  async (request: Request, context: RouteContext) => {
     const user = await requireUser();
+    await consumeGuestMutationRateLimit(user, request);
     const id = routeId((await context.params).expense);
     const result = await getDb().expense.deleteMany({
       where: { id, userId: user.id },

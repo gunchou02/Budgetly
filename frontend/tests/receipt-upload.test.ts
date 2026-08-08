@@ -31,6 +31,16 @@ describe('receipt image validation', () => {
     ).rejects.toThrow();
   });
 
+  it('rejects unsupported image signatures before accepting the upload', async () => {
+    await expect(
+      validateReceiptImage(
+        new File([Buffer.from('icns-invalid-image')], 'receipt.jpg', {
+          type: 'image/jpeg',
+        }),
+      ),
+    ).rejects.toMatchObject({ status: 422 });
+  });
+
   it('rejects images larger than five megabytes before decoding', async () => {
     await expect(
       validateReceiptImage(

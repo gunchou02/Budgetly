@@ -1,8 +1,8 @@
 import { randomUUID } from 'node:crypto';
-import { requireUser } from '@/server/auth';
+import { requireMember } from '@/server/auth';
 import { getDb } from '@/server/db';
 import { ApiError, apiHandler, dataResponse } from '@/server/http';
-import { consumeRateLimit } from '@/server/rate-limit';
+import { consumeUserAndAddressRateLimits } from '@/server/rate-limit';
 import { enqueueReceipt } from '@/server/receipt-queue';
 import {
   deleteReceiptImage,
@@ -14,11 +14,14 @@ import { serializeReceipt } from '@/server/serializers';
 export const maxDuration = 60;
 
 export const POST = apiHandler(async (request: Request) => {
-  const user = await requireUser();
+  const user = await requireMember();
 
-  await consumeRateLimit({
-    key: `receipt-upload:${user.id}`,
-    limit: 10,
+  await consumeUserAndAddressRateLimits({
+    addressLimit: 20,
+    request,
+    scope: 'receipt-upload',
+    userId: user.id,
+    userLimit: 10,
     windowSeconds: 60,
   });
 

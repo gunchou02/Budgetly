@@ -1,5 +1,9 @@
 import { requireUser } from '@/server/auth';
 import { getDb } from '@/server/db';
+import {
+  consumeGuestMutationRateLimit,
+  enforceGuestResourceLimit,
+} from '@/server/guest';
 import { apiHandler, dataResponse } from '@/server/http';
 import { serializeBudget } from '@/server/serializers';
 import {
@@ -27,14 +31,19 @@ export const GET = apiHandler(async (request: Request) => {
 
 export const POST = apiHandler(async (request: Request) => {
   const user = await requireUser();
+  await consumeGuestMutationRateLimit(user, request);
   const input = budgetSchema.parse(await jsonBody(request));
-  const budget = await getDb().monthlyBudget.create({
-    data: {
-      userId: user.id,
-      year: input.year,
-      month: input.month,
-      amount: input.amount,
-    },
+  const budget = await getDb().$transaction(async (transaction) => {
+    await enforceGuestResourceLimit(user, 'budget', transaction);
+
+    return transaction.monthlyBudget.create({
+      data: {
+        userId: user.id,
+        year: input.year,
+        month: input.month,
+        amount: input.amount,
+      },
+    });
   });
 
   return dataResponse(serializeBudget(budget), 201);

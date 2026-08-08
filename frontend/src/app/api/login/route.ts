@@ -14,10 +14,10 @@ export const POST = apiHandler(async (request: Request) => {
   });
   const passwordMatches = await compare(
     input.password,
-    user?.passwordHash ?? INVALID_PASSWORD_HASH,
+    user && !user.isGuest ? user.passwordHash : INVALID_PASSWORD_HASH,
   );
 
-  if (!user || !passwordMatches) {
+  if (!user || user.isGuest || !passwordMatches) {
     throw new ApiError(422, '入力内容を確認してください。', {
       email: ['メールアドレスまたはパスワードが正しくありません。'],
     });
