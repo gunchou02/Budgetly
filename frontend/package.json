@@ -54,7 +54,7 @@
     "tailwindcss": "^4.3.2",
     "tsx": "^4.23.1",
     "typescript": "^6.0.3",
-    "vitest": "^4.1.10"
+    "vitest": "^5.0.0"
   },
   "overrides": {
     "fast-uri": "3.1.5",
