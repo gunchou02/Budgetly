@@ -7,6 +7,12 @@ services:
     volumes:
       - ./frontend:/app
       - frontend-node-modules:/app/node_modules
+      # Keep Linux build artifacts separate from macOS development/build caches.
+      - type: volume
+        source: frontend-next
+        target: /app/.next
+        volume:
+          nocopy: true
       - frontend-receipts:/app/.local-storage
     environment:
       DATABASE_URL: postgresql://${POSTGRES_USER:-budgetly}:${POSTGRES_PASSWORD:-secret}@postgres:5432/${POSTGRES_DB:-budgetly}?schema=public
@@ -79,5 +85,6 @@ services:
 
 volumes:
   frontend-node-modules:
+  frontend-next:
   frontend-receipts:
   postgres-data:

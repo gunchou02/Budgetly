@@ -149,6 +149,24 @@ This operation permanently removes local accounts and finance records.
 
 ## Troubleshooting
 
+### Login repeatedly reloads or Turbopack cannot find Next.js
+
+The frontend's `.next` directory uses the `frontend-next` Docker volume.
+Keep this mount in place when also running Next.js directly on macOS: the
+Linux container must not reuse the host's generated build artifacts and
+Turbopack cache. `nocopy: true` starts a new volume without copying existing
+host artifacts into it.
+
+After updating the Compose mounts, recreate just the frontend:
+
+```bash
+docker compose up -d --no-deps frontend
+docker compose logs -f frontend
+```
+
+Wait for the Next.js ready message, then reload the browser. PostgreSQL and
+receipt data are stored in separate volumes and are retained.
+
 ### Frontend starts before the schema exists
 
 ```bash

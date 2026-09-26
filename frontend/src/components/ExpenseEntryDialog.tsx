@@ -1,5 +1,5 @@
 import dynamic from 'next/dynamic';
-import { PenLine, ReceiptText } from 'lucide-react';
+import { PenLine, ReceiptText, X } from 'lucide-react';
 import { useEffect, useRef, useState, type FormEvent } from 'react';
 import { useAuth } from '@/auth/AuthContext';
 import { getApiErrorMessage } from '../api/client';
@@ -10,7 +10,7 @@ import type { FormFieldEvent } from '@/types/forms';
 
 const ReceiptExpenseFlow = dynamic(() => import('./ReceiptExpenseFlow'));
 
-interface QuickExpenseForm {
+interface ExpenseForm {
   category_id: number | string;
   title: string;
   amount: number | string;
@@ -19,7 +19,8 @@ interface QuickExpenseForm {
   memo: string;
 }
 
-interface QuickExpensePanelProps {
+interface ExpenseEntryDialogProps {
+  isOpen: boolean;
   categories: Category[];
   selectedDate: string;
   onSelectDate: (date: string) => void;
@@ -29,11 +30,11 @@ interface QuickExpensePanelProps {
   onReceiptConfirmed: (spentAt: string) => Promise<void>;
   editingExpense: Expense | null;
   onClearEditing?: () => void;
-  mobileExpanded: boolean;
-  onMobileExpandedChange: (expanded: boolean) => void;
+  onClose: () => void;
 }
 
-function QuickExpensePanel({
+function ExpenseEntryDialog({
+  isOpen,
   categories,
   selectedDate,
   onSelectDate,
@@ -43,9 +44,8 @@ function QuickExpensePanel({
   onReceiptConfirmed,
   editingExpense,
   onClearEditing = () => {},
-  mobileExpanded,
-  onMobileExpandedChange,
-}: QuickExpensePanelProps) {
+  onClose,
+}: ExpenseEntryDialogProps) {
   const { user } = useAuth();
   const isGuest = user?.is_guest ?? false;
   const defaultCategoryId = categories[0]?.id ?? '';
@@ -54,8 +54,9 @@ function QuickExpensePanel({
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [submitError, setSubmitError] = useState('');
   const [submitSuccess, setSubmitSuccess] = useState('');
+  const dialogRef = useRef<HTMLDialogElement>(null);
   const amountInputRef = useRef<HTMLInputElement>(null);
-  const [form, setForm] = useState<QuickExpenseForm>({
+  const [form, setForm] = useState<ExpenseForm>({
     category_id: defaultCategoryId,
     title: '',
     amount: '',
@@ -65,51 +66,45 @@ function QuickExpensePanel({
   });
 
   useEffect(() => {
-    setEditingId(null);
+    if (!isOpen) return;
+    setEditingId(editingExpense?.id ?? null);
+    if (editingExpense) setEntryMode('manual');
     setForm({
-      category_id: defaultCategoryId,
-      title: '',
-      amount: '',
-      spent_at: selectedDate,
+      category_id: editingExpense?.category_id ?? defaultCategoryId,
+      title: editingExpense?.title ?? '',
+      amount: editingExpense?.amount ?? '',
+      spent_at: editingExpense ? getDateValue(editingExpense.spent_at) : selectedDate,
       is_recurring: false,
-      memo: '',
+      memo: editingExpense?.memo ?? '',
     });
-  }, [defaultCategoryId, selectedDate]);
+  }, [defaultCategoryId, selectedDate, editingExpense, isOpen]);
 
   useEffect(() => {
-    if (!editingExpense) {
-      return;
-    }
-
-    setEditingId(editingExpense.id);
-    setEntryMode('manual');
-    setForm({
-      category_id: editingExpense.category_id,
-      title: editingExpense.title,
-      amount: editingExpense.amount,
-      spent_at: getDateValue(editingExpense.spent_at),
-      is_recurring: false,
-      memo: editingExpense.memo ?? '',
-    });
-  }, [editingExpense]);
-
-  useEffect(() => {
-    if (editingExpense) {
-      onMobileExpandedChange(true);
-    }
-  }, [editingExpense, onMobileExpandedChange]);
+    if (!isOpen) return;
+    setSubmitError('');
+    setSubmitSuccess('');
+    const dialog = dialogRef.current;
+    const previousFocus = document.activeElement instanceof HTMLElement ? document.activeElement : null;
+    const previousOverflow = document.body.style.overflow;
+    dialog?.showModal();
+    document.body.style.overflow = 'hidden';
+    return () => {
+      dialog?.close();
+      document.body.style.overflow = previousOverflow;
+      if (previousFocus?.isConnected) {
+        previousFocus.focus({ preventScroll: true });
+      } else {
+        document.querySelector<HTMLElement>('#main-content')?.focus();
+      }
+    };
+  }, [isOpen]);
 
   useEffect(() => {
-    if (!mobileExpanded || (entryMode === 'receipt' && !editingId)) {
-      return;
-    }
-
-    const frameId = requestAnimationFrame(() => {
-      amountInputRef.current?.focus();
-    });
-
+    if (!isOpen) return;
+    if (entryMode === 'receipt' && !editingId) return;
+    const frameId = requestAnimationFrame(() => amountInputRef.current?.focus());
     return () => cancelAnimationFrame(frameId);
-  }, [editingId, entryMode, mobileExpanded]);
+  }, [editingId, entryMode, isOpen]);
 
   function updateForm(event: FormFieldEvent) {
     setSubmitSuccess('');
@@ -190,26 +185,23 @@ function QuickExpensePanel({
   }
 
   return (
-    <section id="expense-entry" className="panel quick-expense-panel">
-      <button
-        type="button"
-        className="quick-expense-mobile-toggle"
-        aria-expanded={mobileExpanded}
-        aria-controls="expense-entry-content"
-        onClick={() => onMobileExpandedChange(!mobileExpanded)}
-      >
-        <PenLine size={18} aria-hidden="true" />
-        {mobileExpanded ? '入力を閉じる' : '支出を追加'}
+    <dialog
+      ref={dialogRef}
+      className="expense-entry-dialog"
+      aria-labelledby="expense-entry-title"
+      onCancel={(event) => {
+        event.preventDefault();
+        if (!isSubmitting) onClose();
+      }}
+    >
+      <button type="button" className="expense-dialog-close" onClick={onClose} disabled={isSubmitting} aria-label="入力を閉じる">
+        <X size={21} aria-hidden="true" />
       </button>
-
-      <div
-        id="expense-entry-content"
-        className={`quick-expense-content${mobileExpanded ? ' open' : ''}`}
-      >
+      <div id="expense-entry-content">
         <div className="panel-header">
           <div>
-            <h2>{editingId ? '支出を編集' : entryMode === 'receipt' ? 'レシートから追加' : '支出を追加'}</h2>
-            <p className="muted-text">{selectedDate}</p>
+            <h2 id="expense-entry-title">{editingId ? '支出を編集' : entryMode === 'receipt' ? 'レシートから追加' : '支出を追加'}</h2>
+            <p className="muted-text">{form.spent_at}</p>
           </div>
         </div>
 
@@ -252,91 +244,94 @@ function QuickExpensePanel({
 
         {(entryMode === 'manual' || editingId) && (
           <form className="form-grid compact-form" onSubmit={handleSubmit}>
-            <label>
-              金額
-              <AmountInput
-                name="amount"
-                value={form.amount}
-                onChange={updateForm}
-                required
-                inputRef={amountInputRef}
-              />
-            </label>
-            <label>
-              タイトル
-              <input
-                name="title"
-                value={form.title}
-                onChange={updateForm}
-                placeholder="例: ランチ"
-                required
-              />
-            </label>
-            <label>
-              カテゴリ
-              <select name="category_id" value={form.category_id} onChange={updateForm} required>
-                {!defaultCategoryId && <option value="">カテゴリなし</option>}
-                {categories.map((category) => (
-                  <option key={category.id} value={category.id}>
-                    {category.name}
-                  </option>
-                ))}
-              </select>
-            </label>
-            <label>
-              日付
-              <input name="spent_at" type="date" value={form.spent_at} onChange={updateForm} required />
-            </label>
-            {!editingId && (
-              <label className="checkbox-label">
-                <input
-                  name="is_recurring"
-                  type="checkbox"
-                  checked={form.is_recurring}
+            <fieldset className="form-fields" disabled={isSubmitting}>
+              <legend className="sr-only">支出の入力</legend>
+              <label>
+                金額
+                <AmountInput
+                  name="amount"
+                  value={form.amount}
                   onChange={updateForm}
+                  required
+                  inputRef={amountInputRef}
                 />
-                毎月繰り返す
               </label>
-            )}
-            <label>
-              メモ
-              <input name="memo" value={form.memo} onChange={updateForm} />
-            </label>
-            {submitError && (
-              <p className="form-error" role="alert">
-                {submitError}
-              </p>
-            )}
-            {submitSuccess && (
-              <p className="form-success" role="status">
-                {submitSuccess}
-              </p>
-            )}
-            <div className="button-row">
-              <button
-                className="primary-button"
-                type="submit"
-                disabled={isSubmitting || !defaultCategoryId}
-              >
-                {isSubmitting
-                  ? '送信中…'
-                  : editingId
-                    ? '更新'
-                    : form.is_recurring
-                      ? '固定費として追加'
-                      : '追加'}
-              </button>
-              {editingId && (
-                <button
-                  className="secondary-button"
-                  type="button"
-                  onClick={resetForm}
-                  disabled={isSubmitting}
-                >
-                  キャンセル
-                </button>
+              <label>
+                タイトル
+                <input
+                  name="title"
+                  value={form.title}
+                  onChange={updateForm}
+                  placeholder="例: ランチ"
+                  required
+                />
+              </label>
+              <label>
+                カテゴリ
+                <select name="category_id" value={form.category_id} onChange={updateForm} required>
+                  {!defaultCategoryId && <option value="">カテゴリなし</option>}
+                  {categories.map((category) => (
+                    <option key={category.id} value={category.id}>
+                      {category.name}
+                    </option>
+                  ))}
+                </select>
+              </label>
+              <label>
+                日付
+                <input name="spent_at" type="date" value={form.spent_at} onChange={updateForm} required />
+              </label>
+              {!editingId && (
+                <label className="checkbox-label">
+                  <input
+                    name="is_recurring"
+                    type="checkbox"
+                    checked={form.is_recurring}
+                    onChange={updateForm}
+                  />
+                  毎月繰り返す
+                </label>
               )}
-            </div>
+              <label>
+                メモ
+                <input name="memo" value={form.memo} onChange={updateForm} />
+              </label>
+              {submitError && (
+                <p className="form-error" role="alert">
+                  {submitError}
+                </p>
+              )}
+              {submitSuccess && (
+                <p className="form-success" role="status">
+                  {submitSuccess}
+                </p>
+              )}
+              <div className="button-row">
+                <button
+                  className="primary-button"
+                  type="submit"
+                  disabled={isSubmitting || !defaultCategoryId}
+                >
+                  {isSubmitting
+                    ? '送信中…'
+                    : editingId
+                      ? '更新'
+                      : form.is_recurring
+                        ? '固定費として追加'
+                        : '追加'}
+                </button>
+                {editingId && (
+                  <button
+                    className="secondary-button"
+                    type="button"
+                    onClick={resetForm}
+                    disabled={isSubmitting}
+                  >
+                    キャンセル
+                  </button>
+                )}
+              </div>
+            </fieldset>
           </form>
         )}
 
@@ -350,8 +345,8 @@ function QuickExpensePanel({
           </div>
         )}
       </div>
-    </section>
+    </dialog>
   );
 }
 
-export default QuickExpensePanel;
+export default ExpenseEntryDialog;

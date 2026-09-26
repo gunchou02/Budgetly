@@ -5,10 +5,10 @@ import { Plus } from 'lucide-react';
 import { useCallback, useEffect, useState, type ChangeEvent } from 'react';
 import { Cell, Pie, PieChart, ResponsiveContainer } from 'recharts';
 import { apiClient, getApiErrorMessage } from '../api/client';
-import DailyExpenseList from '../components/DailyExpenseList';
-import ExpenseCalendar from '../components/ExpenseCalendar';
-import QuickExpensePanel from '../components/QuickExpensePanel';
-import { formatDateValue, formatMonthLabel, formatYen, getCurrentYearMonth } from '../utils/formatters';
+import RecentExpenseList from '@/components/RecentExpenseList';
+import ExpenseEntryDialog from '@/components/ExpenseEntryDialog';
+import BrandIllustration from '@/components/BrandIllustration';
+import { formatDateValue, formatYen, getCurrentYearMonth } from '../utils/formatters';
 import type {
   ApiEnvelope,
   BudgetStatus,
@@ -17,7 +17,6 @@ import type {
   DashboardSummary,
   Expense,
   ExpensePayload,
-  Subscription,
   SubscriptionPayload,
 } from '@/types/api';
 
@@ -36,14 +35,13 @@ const statusMessages: Record<BudgetStatus, string> = {
 function DashboardPage() {
   const current = getCurrentYearMonth();
   const [filters, setFilters] = useState(current);
-  const [selectedDate, setSelectedDate] = useState(() => formatDateValue());
+  const [entryDate, setEntryDate] = useState(() => formatDateValue());
   const [dashboard, setDashboard] = useState<DashboardSummary | null>(null);
   const [categoryReport, setCategoryReport] = useState<CategoryReport | null>(null);
   const [expenseCategories, setExpenseCategories] = useState<Category[]>([]);
   const [expenses, setExpenses] = useState<Expense[]>([]);
-  const [subscriptions, setSubscriptions] = useState<Subscription[]>([]);
   const [editingExpense, setEditingExpense] = useState<Expense | null>(null);
-  const [isQuickEntryExpanded, setIsQuickEntryExpanded] = useState(false);
+  const [isEntryOpen, setIsEntryOpen] = useState(false);
   const [error, setError] = useState('');
   const [isLoading, setIsLoading] = useState(true);
 
@@ -57,12 +55,11 @@ function DashboardPage() {
           year: filters.year,
           month: filters.month,
         };
-        const [dashboardResponse, categoryResponse, categoriesResponse, expensesResponse, subscriptionResponse] = await Promise.all([
+        const [dashboardResponse, categoryResponse, categoriesResponse, expensesResponse] = await Promise.all([
           apiClient.get<ApiEnvelope<DashboardSummary>>('/dashboard', { params }),
           apiClient.get<ApiEnvelope<CategoryReport>>('/reports/categories', { params }),
           apiClient.get<ApiEnvelope<Category[]>>('/categories', { params: { type: 'expense' } }),
           apiClient.get<ApiEnvelope<Expense[]>>('/expenses', { params }),
-          apiClient.get<ApiEnvelope<Subscription[]>>('/subscriptions', { params: { status: 'active' } }),
         ]);
 
         if (shouldUpdate()) {
@@ -70,7 +67,6 @@ function DashboardPage() {
           setCategoryReport(categoryResponse.data.data);
           setExpenseCategories(categoriesResponse.data.data);
           setExpenses(expensesResponse.data.data);
-          setSubscriptions(subscriptionResponse.data.data);
         }
       } catch (requestError) {
         if (shouldUpdate()) {
@@ -103,7 +99,7 @@ function DashboardPage() {
       [event.target.name]: nextValue,
     }));
 
-    setSelectedDate((currentDate) => {
+    setEntryDate((currentDate) => {
       const [year, month, day] = currentDate.split('-').map(Number);
       const nextYear = event.target.name === 'year' ? nextValue : year;
       const nextMonth = event.target.name === 'month' ? nextValue : month;
@@ -117,7 +113,7 @@ function DashboardPage() {
 
     try {
       await apiClient.post('/expenses', payload);
-      await fetchDashboard();
+      await refreshForDate(payload.spent_at);
     } catch (requestError) {
       setError(getApiErrorMessage(requestError));
       throw requestError;
@@ -129,7 +125,7 @@ function DashboardPage() {
 
     try {
       await apiClient.post('/subscriptions', payload);
-      await fetchDashboard();
+      await refreshForDate(payload.started_at);
     } catch (requestError) {
       setError(getApiErrorMessage(requestError));
       throw requestError;
@@ -142,7 +138,7 @@ function DashboardPage() {
     try {
       await apiClient.put(`/expenses/${expenseId}`, payload);
       setEditingExpense(null);
-      await fetchDashboard();
+      await refreshForDate(payload.spent_at);
     } catch (requestError) {
       setError(getApiErrorMessage(requestError));
       throw requestError;
@@ -150,19 +146,13 @@ function DashboardPage() {
   }
 
   async function deleteExpense(expenseId: number) {
-    setError('');
-
-    try {
-      await apiClient.delete(`/expenses/${expenseId}`);
-      await fetchDashboard();
-    } catch (requestError) {
-      setError(getApiErrorMessage(requestError));
-    }
+    await apiClient.delete(`/expenses/${expenseId}`);
+    await fetchDashboard();
   }
 
-  async function handleReceiptConfirmed(spentAt: string) {
+  async function refreshForDate(spentAt: string) {
     const [year, month] = spentAt.split('-').map(Number);
-    setSelectedDate(spentAt);
+    setEntryDate(spentAt);
 
     if (year === filters.year && month === filters.month) {
       await fetchDashboard();
@@ -172,26 +162,23 @@ function DashboardPage() {
     setFilters({ year, month });
   }
 
-  function revealQuickEntry() {
-    setIsQuickEntryExpanded(true);
-
-    requestAnimationFrame(() => {
-      const expenseEntry = document.getElementById('expense-entry');
-      expenseEntry?.scrollIntoView({ block: 'start' });
-    });
+  function openExpenseEntry() {
+    setEditingExpense(null);
+    setIsEntryOpen(true);
   }
 
   function startEditingExpense(expense: Expense) {
     setEditingExpense(expense);
-    revealQuickEntry();
+    setIsEntryOpen(true);
   }
 
   const reportCategories = categoryReport?.categories ?? [];
-  const quickExpenseCategories = expenseCategories;
+  const categoryTotal = reportCategories.reduce((total, category) => total + Number(category.amount), 0);
   const status = dashboard?.status ?? 'safe';
   const usageRate = dashboard ? Math.max(0, Math.min(dashboard.usage_rate, 100)) : 0;
   const remainingLabel = dashboard && dashboard.remaining < 0 ? '予算を超えた金額' : '今月、あと使えるお金';
   const remainingAmount = dashboard ? Math.abs(dashboard.remaining) : 0;
+  const needsBudget = dashboard?.budget === 0 && dashboard.total_spent === 0;
 
   return (
     <section className="page-stack dashboard-page">
@@ -199,6 +186,7 @@ function DashboardPage() {
         <div>
           <p className="eyebrow">くらしのお金</p>
           <h1>{filters.month}月の家計</h1>
+          <p className="page-description">小さな記録から、心地よい毎日へ。</p>
         </div>
         <div className="header-actions dashboard-month-picker" aria-label="表示する年月">
           <select name="year" value={filters.year} onChange={updateFilter} aria-label="年">
@@ -239,21 +227,29 @@ function DashboardPage() {
         <>
           <section className={`dashboard-overview ${status}`} aria-labelledby="dashboard-overview-title">
             <div className="dashboard-overview-top">
-              <div>
-                <p className="dashboard-overview-period">{formatMonthLabel(filters.year, filters.month)}</p>
+              <div className="dashboard-overview-copy">
                 <h2 id="dashboard-overview-title">{remainingLabel}</h2>
-                <div className="dashboard-balance-line">
-                  <strong>{formatYen(remainingAmount)}</strong>
-                  <span className={`status-pill ${status === 'over_budget' ? 'danger' : status}`}>
-                    {statusLabels[status]}
-                  </span>
+                <div className="dashboard-balance-actions">
+                  <strong className="dashboard-balance">{formatYen(remainingAmount)}</strong>
+                  {needsBudget ? (
+                    <Link href="/budgets" className="overview-primary-action">今月の予算を設定</Link>
+                  ) : (
+                    <button type="button" className="overview-primary-action" onClick={openExpenseEntry}>
+                      <Plus size={19} aria-hidden="true" />支出を記録
+                    </button>
+                  )}
                 </div>
-                <p className="dashboard-overview-message">{statusMessages[status]}</p>
+                <p className="dashboard-overview-message">
+                  <span className={`status-pill ${status === 'over_budget' ? 'danger' : status}`}>
+                    {needsBudget ? 'はじめの一歩' : statusLabels[status]}
+                  </span>
+                  {needsBudget ? '今月の予算を決めて、記録をはじめましょう。' : statusMessages[status]}
+                </p>
               </div>
-              <button type="button" className="overview-primary-action" onClick={revealQuickEntry}>
-                <Plus size={19} aria-hidden="true" />
-                支出を記録
-              </button>
+              <div className="dashboard-companion">
+                <BrandIllustration size={176} priority />
+                <span>少しずつ、ゆとりを。</span>
+              </div>
             </div>
 
             <div className="budget-progress">
@@ -290,103 +286,79 @@ function DashboardPage() {
             </dl>
           </section>
 
-          <div className="dashboard-calendar-grid">
-            <div className="calendar-column">
-              <ExpenseCalendar
-                year={filters.year}
-                month={filters.month}
-                expenses={expenses}
-                subscriptions={subscriptions}
-                selectedDate={selectedDate}
-                onSelectDate={setSelectedDate}
-              />
-              <DailyExpenseList
-                expenses={expenses}
-                subscriptions={subscriptions}
-                selectedDate={selectedDate}
-                onEdit={startEditingExpense}
-                onDelete={deleteExpense}
-              />
-            </div>
-            <QuickExpensePanel
-              categories={quickExpenseCategories}
-              selectedDate={selectedDate}
-              onSelectDate={setSelectedDate}
-              onCreate={createExpense}
-              onCreateRecurring={createRecurringExpense}
-              onUpdate={updateExpense}
-              onReceiptConfirmed={handleReceiptConfirmed}
-              editingExpense={editingExpense}
-              onClearEditing={() => setEditingExpense(null)}
-              mobileExpanded={isQuickEntryExpanded}
-              onMobileExpandedChange={setIsQuickEntryExpanded}
+          <div className="dashboard-detail-grid">
+            <RecentExpenseList
+              key={`${filters.year}-${filters.month}`}
+              expenses={expenses}
+              onCreate={openExpenseEntry}
+              onEdit={startEditingExpense}
+              onDelete={deleteExpense}
             />
-            <section className="panel fixed-cost-panel">
-              <div className="panel-header split">
-                <h2>これからの固定費</h2>
-                <Link href="/subscriptions" className="text-link">
-                  管理する
-                </Link>
-              </div>
-              {subscriptions.length > 0 ? (
-                <div className="subscription-list">
-                  {subscriptions.slice(0, 5).map((subscription) => (
-                    <div key={subscription.id}>
-                      <span>{subscription.name}</span>
-                      <strong>{formatYen(subscription.amount)}</strong>
-                    </div>
-                  ))}
-                </div>
-              ) : (
-                <p className="muted-text">登録済みの固定費はありません。</p>
-              )}
-              <p className={`insight ${dashboard.remaining < 0 ? 'danger-text' : ''}`}>
-                固定費合計 {formatYen(dashboard.subscription_total)}
-              </p>
-            </section>
-          </div>
-
-          <div className="content-grid">
             <section className="panel category-overview-panel">
               <div className="panel-header split">
-                <h2>カテゴリ別支出</h2>
+                <h2>支出の内訳</h2>
                 <Link href="/reports" className="text-link">
                   詳しく見る
                 </Link>
               </div>
               {reportCategories.length > 0 ? (
-                <div className="chart-layout">
-                  <ResponsiveContainer width="100%" height={260}>
-                    <PieChart>
-                      <Pie data={reportCategories} dataKey="amount" nameKey="name" innerRadius={58} outerRadius={96}>
-                        {reportCategories.map((entry) => (
-                          <Cell key={entry.category_id} fill={entry.color} />
-                        ))}
-                      </Pie>
-                    </PieChart>
-                  </ResponsiveContainer>
+                <div className="category-breakdown">
+                  <div className="category-donut">
+                    <div aria-hidden="true">
+                      <ResponsiveContainer width="100%" height={224}>
+                        <PieChart accessibilityLayer={false}>
+                          <Pie data={reportCategories} dataKey="amount" nameKey="name" innerRadius={72} outerRadius={102} paddingAngle={2} stroke="none" isAnimationActive={false}>
+                            {reportCategories.map((entry, index) => (
+                              <Cell key={entry.category_id} fill={`var(--budgetly-category-${index % 6})`} />
+                            ))}
+                          </Pie>
+                        </PieChart>
+                      </ResponsiveContainer>
+                    </div>
+                    <div className="category-donut-total"><span>通常支出</span><strong>{formatYen(categoryTotal)}</strong></div>
+                  </div>
                   <ul className="legend-list">
-                    {reportCategories.map((item) => (
+                    {reportCategories.map((item, index) => (
                       <li key={item.category_id}>
-                        <span style={{ backgroundColor: item.color }} />
+                        <span style={{ backgroundColor: `var(--budgetly-category-${index % 6})` }} aria-hidden="true" />
                         <span>{item.name}</span>
                         <strong>{formatYen(item.amount)}</strong>
+                        <small>{item.percentage}%</small>
                       </li>
                     ))}
                   </ul>
                 </div>
               ) : (
                 <div className="empty-state">
+                  <BrandIllustration kind="chart" size={88} />
                   <p>この月の支出はまだありません。</p>
-                  <button type="button" className="secondary-button" onClick={revealQuickEntry}>
+                  <button type="button" className="secondary-button" onClick={openExpenseEntry}>
                     最初の支出を追加
                   </button>
                 </div>
               )}
+              <Link href="/subscriptions" className="fixed-cost-summary">
+                <span>毎月の固定費</span><strong>{formatYen(dashboard.subscription_total)}</strong><span aria-hidden="true">→</span>
+              </Link>
             </section>
           </div>
 
         </>
+      )}
+      {dashboard && (
+        <ExpenseEntryDialog
+          isOpen={isEntryOpen}
+          categories={expenseCategories}
+          selectedDate={entryDate}
+          onSelectDate={setEntryDate}
+          onCreate={createExpense}
+          onCreateRecurring={createRecurringExpense}
+          onUpdate={updateExpense}
+          onReceiptConfirmed={refreshForDate}
+          editingExpense={editingExpense}
+          onClearEditing={() => setEditingExpense(null)}
+          onClose={() => { setIsEntryOpen(false); setEditingExpense(null); }}
+        />
       )}
     </section>
   );

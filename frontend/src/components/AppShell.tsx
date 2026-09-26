@@ -56,11 +56,12 @@ export default function AppShell({ children }: { children: ReactNode }) {
 
   return (
     <div className="app-shell">
+      <a className="skip-link" href="#main-content">メインコンテンツへ</a>
       <aside className="sidebar desktop-sidebar">
         <div className="brand">
-          <BrandMark priority />
           <div>
             <strong>Budgetly</strong>
+            <span>お金に、ちょっと余裕を。</span>
           </div>
         </div>
 
@@ -122,7 +123,7 @@ export default function AppShell({ children }: { children: ReactNode }) {
         </button>
       </header>
 
-      <main className="main-content">
+      <main className="main-content" id="main-content" tabIndex={-1}>
         {logoutError && (
           <p className="form-error shell-error" role="alert">
             {logoutError}

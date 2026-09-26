@@ -9,7 +9,7 @@ export default function BrandMark({ size = 40, priority = false }: BrandMarkProp
   return (
     <Image
       className="brand-mark"
-      src="/brand/budgetly-mark.svg"
+      src="/brand/glass/mark.webp"
       alt=""
       width={size}
       height={size}

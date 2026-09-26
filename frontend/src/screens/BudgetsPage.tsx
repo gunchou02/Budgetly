@@ -3,6 +3,7 @@
 import { useEffect, useState, type FormEvent } from 'react';
 import { apiClient, getApiErrorMessage } from '../api/client';
 import AmountInput from '../components/AmountInput';
+import BrandIllustration from '@/components/BrandIllustration';
 import { formatMonthLabel, formatYen, getCurrentYearMonth } from '../utils/formatters';
 import type { ApiEnvelope, MonthlyBudget } from '@/types/api';
 import type { FormFieldEvent } from '@/types/forms';
@@ -23,12 +24,16 @@ function BudgetsPage() {
   const [budget, setBudget] = useState<MonthlyBudget | null>(null);
   const [error, setError] = useState('');
   const [message, setMessage] = useState('');
+  const [isLoading, setIsLoading] = useState(true);
+  const [isSubmitting, setIsSubmitting] = useState(false);
   const displayedAmount = budget?.amount ?? form.amount;
 
   useEffect(() => {
     let isActive = true;
 
     async function fetchBudget() {
+      setIsLoading(true);
+      setBudget(null);
       setError('');
       setMessage('');
 
@@ -51,6 +56,8 @@ function BudgetsPage() {
         if (isActive) {
           setError(getApiErrorMessage(requestError));
         }
+      } finally {
+        if (isActive) setIsLoading(false);
       }
     }
 
@@ -70,6 +77,8 @@ function BudgetsPage() {
 
   async function handleSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
+    if (isLoading || isSubmitting) return;
+    setIsSubmitting(true);
     setError('');
     setMessage('');
 
@@ -87,6 +96,8 @@ function BudgetsPage() {
       setMessage('予算を保存しました。');
     } catch (requestError) {
       setError(getApiErrorMessage(requestError));
+    } finally {
+      setIsSubmitting(false);
     }
   }
 
@@ -96,6 +107,7 @@ function BudgetsPage() {
         <div>
           <p className="eyebrow">予算管理</p>
           <h1>予算</h1>
+          <p className="page-description">今月の目安を決めて、ゆとりある毎日を。</p>
         </div>
       </header>
 
@@ -105,8 +117,9 @@ function BudgetsPage() {
             <p className="eyebrow">{formatMonthLabel(form.year, form.month)}</p>
             <h2>今月の予算</h2>
           </div>
-          <strong>{budget ? formatYen(displayedAmount) : '未設定'}</strong>
-          <span>{budget ? 'この金額を基準にホームの残額を計算します。' : 'この月の予算はまだ設定されていません。'}</span>
+          <BrandIllustration kind="wallet" size={196} className="feature-hero-art" priority />
+          <strong>{isLoading ? '—' : budget ? formatYen(displayedAmount) : '未設定'}</strong>
+          <span role="status">{isLoading ? '予算を読み込んでいます…' : budget ? 'この金額を基準にホームの残額を計算します。' : 'この月の予算はまだ設定されていません。'}</span>
         </div>
 
         <section className="panel budget-edit-panel">
@@ -114,34 +127,38 @@ function BudgetsPage() {
             <h2>予算を編集</h2>
           </div>
           <form className="form-grid" onSubmit={handleSubmit}>
-            <div className="form-row">
+            <fieldset className="form-fields" disabled={isLoading || isSubmitting}>
+              <legend className="sr-only">月間予算の設定</legend>
+              <div className="form-row">
+                <label>
+                  年
+                  <input name="year" type="number" value={form.year} onChange={updateField} min="2000" max="2100" />
+                </label>
+                <label>
+                  月
+                  <input name="month" type="number" value={String(form.month).padStart(2, '0')} onChange={updateField} min="1" max="12" />
+                </label>
+              </div>
               <label>
-                年
-                <input name="year" type="number" value={form.year} onChange={updateField} min="2000" max="2100" />
+                月間生活費予算
+                <AmountInput name="amount" value={form.amount} onChange={updateField} required />
               </label>
-              <label>
-                月
-                <input name="month" type="number" value={String(form.month).padStart(2, '0')} onChange={updateField} min="1" max="12" />
-              </label>
-            </div>
-            <label>
-              月間生活費予算
-              <AmountInput name="amount" value={form.amount} onChange={updateField} />
-            </label>
-            {error && (
-              <p className="form-error" role="alert">
-                {error}
-              </p>
-            )}
-            {message && (
-              <p className="form-success" role="status">
-                {message}
-              </p>
-            )}
-            <button className="primary-button" type="submit">
-              {budget ? '予算を更新' : '予算を設定'}
-            </button>
+              {error && (
+                <p className="form-error" role="alert">
+                  {error}
+                </p>
+              )}
+              {message && (
+                <p className="form-success" role="status">
+                  {message}
+                </p>
+              )}
+              <button className="primary-button" type="submit">
+                {isSubmitting ? '保存中…' : budget ? '予算を更新' : '予算を設定'}
+              </button>
+            </fieldset>
           </form>
+          <p className="form-help">家賃やサブスクなどの固定費も含めた、1か月の支出の目安です。暮らしに合わせて、いつでも変更できます。</p>
         </section>
       </section>
     </section>

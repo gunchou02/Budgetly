@@ -1,94 +1,140 @@
 <p align="center">
-  <img src="./frontend/public/brand/budgetly-mark.svg" width="88" height="88" alt="Budgetly logo" />
+  <img src="./frontend/public/brand/glass/mascot.webp" width="152" height="152" alt="Budgetly's lavender glass piggy-bank companion" />
 </p>
 
 <h1 align="center">Budgetly</h1>
 
 <p align="center">
-  <strong>毎月のお金を、わかりやすく。</strong><br />
-  A Japanese personal finance application for budgets, expenses, subscriptions,
-  receipt OCR, and AI-assisted spending insights.
+  <strong>お金に、ちょっと余裕を。</strong><br />
+  Small everyday records. A little more breathing room.
 </p>
 
 <p align="center">
-  <img src="https://img.shields.io/badge/Next.js-16-000000?logo=nextdotjs&logoColor=white" alt="Next.js 16" />
-  <img src="https://img.shields.io/badge/TypeScript-3178C6?logo=typescript&logoColor=white" alt="TypeScript" />
-  <img src="https://img.shields.io/badge/PostgreSQL-17-4169E1?logo=postgresql&logoColor=white" alt="PostgreSQL 17" />
-  <img src="https://img.shields.io/badge/Prisma-7-2D3748?logo=prisma&logoColor=white" alt="Prisma 7" />
-  <img src="https://img.shields.io/badge/FastAPI-009688?logo=fastapi&logoColor=white" alt="FastAPI" />
-  <img src="https://img.shields.io/badge/Docker-2496ED?logo=docker&logoColor=white" alt="Docker" />
+  A Japanese household budget app for knowing what you can still spend this month.<br />
+  Monthly budgets, daily expenses, and recurring payments — in one calm place.
+</p>
+
+<p align="center">
+  <img src="https://img.shields.io/badge/Next.js_16-EEE6FC?style=flat&amp;logo=nextdotjs&amp;logoColor=7350C4" alt="Next.js 16" />
+  <img src="https://img.shields.io/badge/TypeScript-EEE6FC?style=flat&amp;logo=typescript&amp;logoColor=7350C4" alt="TypeScript" />
+  <img src="https://img.shields.io/badge/PostgreSQL-EEE6FC?style=flat&amp;logo=postgresql&amp;logoColor=7350C4" alt="PostgreSQL" />
   <a href="https://github.com/gunchou02/Budgetly/actions/workflows/ci.yml">
     <img src="https://github.com/gunchou02/Budgetly/actions/workflows/ci.yml/badge.svg" alt="CI status" />
   </a>
 </p>
 
 <p align="center">
-  <a href="https://budgetly-jp.vercel.app">Live app</a> ·
-  <a href="#features">Features</a> ·
-  <a href="#design-and-ux">Design & UX</a> ·
+  <a href="https://budgetly-jp.vercel.app">Try Budgetly</a> ·
+  <a href="#a-look-inside">Screens</a> ·
+  <a href="#design-and-ux">Design</a> ·
+  <a href="#local-development">Run locally</a> ·
   <a href="#architecture">Architecture</a> ·
-  <a href="#local-development">Local setup</a> ·
-  <a href="#testing">Testing</a> ·
-  <a href="./docs/vercel.md">Deployment</a>
+  <a href="#documentation">Docs</a>
 </p>
 
----
+## A little room in your budget
 
-## Overview
+The home screen starts with one useful question: **how much can I still spend?**
+Your remaining balance, daily allowance, recent expenses, and category breakdown
+sit together, so the next step is easy to find.
 
-Budgetly helps users understand how much they can still spend this month.
-Instead of only recording transactions, it combines monthly budgets, recurring
-costs, receipt capture, and concise Japanese insights in one responsive
-workflow.
+<table>
+  <tr>
+    <td width="33%" align="center">
+      <img src="./frontend/public/brand/glass/wallet.webp" width="80" height="80" alt="" /><br />
+      <strong>予算を決める</strong><br />
+      Set a monthly budget that fits your life.
+    </td>
+    <td width="33%" align="center">
+      <img src="./frontend/public/brand/glass/receipt.webp" width="80" height="80" alt="" /><br />
+      <strong>かんたん記録</strong><br />
+      Record an expense while it is still fresh.
+    </td>
+    <td width="33%" align="center">
+      <img src="./frontend/public/brand/glass/chart.webp" width="80" height="80" alt="" /><br />
+      <strong>支出が見える</strong><br />
+      See where this month's money is going.
+    </td>
+  </tr>
+</table>
 
-> **UI refresh:** Budgetly now uses a warm digital-ledger interface with
-> remaining money first, faster expense entry, and layouts tailored to desktop,
-> tablet, and mobile.
+**Start without an account:** choose **ゲストとして試す** on the login screen.
+Guest access lasts 24 hours; leaving guest mode deletes that guest's data.
+Receipt processing and generated AI insights require a member account.
 
-```text
-Try as a guest or create an account -> Set monthly budget
--> Add or scan expenses -> Review dashboard -> Understand spending patterns
-```
+## A look inside
 
-## Refreshed Product Preview
+### Your month at a glance
 
-![Refreshed Budgetly dashboard showing the monthly balance, spending calendar, and quick expense entry](./docs/images/dashboard-ui-refresh.jpg)
+A clear balance, one expense-entry action, and a recent transaction list beside
+the category chart. The desktop sidebar keeps the Budgetly wordmark and navigation;
+the glass companion lives in the balance summary.
+
+![Budgetly desktop home with a remaining balance, recent expenses, and category donut chart](./docs/images/dashboard-glass.jpg)
+
+### On your phone
+
+A compact header, bottom navigation, and an expense dialog with a focused amount
+field keep the same flow comfortable on a smaller screen.
+
+<table>
+  <tr>
+    <th align="center">Home</th>
+    <th align="center">Record an expense</th>
+  </tr>
+  <tr>
+    <td width="50%" align="center"><img src="./docs/images/dashboard-glass-mobile.jpg" width="300" alt="Mobile home with a monthly balance and expense action" /></td>
+    <td width="50%" align="center"><img src="./docs/images/expense-entry-glass-mobile.jpg" width="300" alt="Mobile expense dialog with labeled amount, title, category, and date inputs" /></td>
+  </tr>
+</table>
+
+<details>
+<summary><strong>Explore login, budgets, subscriptions, and reports</strong></summary>
+
+| Welcome back | Set your monthly budget |
+| --- | --- |
+| ![Login screen with a lavender glass companion](./docs/images/login-glass.jpg) | ![Monthly budget screen with a glass wallet and budget form](./docs/images/budgets-glass.jpg) |
+
+| Keep recurring payments together | Look back at your spending |
+| --- | --- |
+| ![Recurring payments screen](./docs/images/subscriptions-glass.jpg) | ![Spending reports with category and monthly comparisons](./docs/images/reports-glass.jpg) |
+
+</details>
+
+<sub>Actual application captures using illustrative data in an isolated guest account. Development tool overlays are omitted. No personal financial records are shown.</sub>
 
 ## Design and UX
 
-Budgetly is designed as a warm digital household ledger rather than a generic
-analytics dashboard. The interface uses a paper-like canvas, deep navy
-financial summary, violet interaction color, and a separate pink accent for
-recurring costs.
+**Soft Glass Buddy** pairs a frosted lavender piggy bank with milky surfaces,
+soft mint and apricot chart colors, and quiet typography. Illustration adds
+warmth; balances, controls, and transaction details stay easy to read.
 
-| Principle | Product behavior |
+| Design choice | In the app |
 | --- | --- |
-| Remaining money first | The dashboard leads with how much can still be spent, budget usage, and a short next-step message |
-| Fast expense capture | A prominent action opens manual or receipt-based entry and moves focus directly to the amount field |
-| Responsive by content | Desktop uses a persistent sidebar; tablet and mobile use a compact header and bottom navigation |
-| Mobile-readable calendar | Dense amounts become color-coded indicators while accessible labels retain exact totals |
-| Predictable feedback | Loading, success, empty, error, submitting, focus, and selected states are explicitly represented |
-| Accessible analysis | Charts include text alternatives, controls have accessible names, and live updates use status or alert semantics |
+| Lavender canvas · `#F6F3FC` | A calm background shared by every screen |
+| Plum text · `#302344` | Clear headings, balances, and transaction amounts |
+| Lavender action · `#7350C4` | One clear primary action per task |
+| Glass illustrations | A companion on home and matching wallet, receipt, and chart assets |
+| Simple navigation | A wordmark-only desktop sidebar; compact navigation on tablet and mobile |
+| Keyboard-friendly entry | Native modal dialog, amount focus, Escape to close, and restored focus |
+| Readable feedback | Explicit loading, empty, saving, success, and error states |
 
-The primary screens were manually checked at 375 px, 768 px, and 1280 px
-without horizontal overflow. Calendar navigation, quick entry focus, collapsed
-form behavior, and mobile touch targets were also verified in the browser.
+The UI was checked at **375, 768, and 1280 px**, including document overflow,
+image loading, and the main expense flow. Motion respects reduced-motion
+preferences. See the [design system](./docs/design-system.md) for tokens,
+asset prompts, and the scope of visual verification.
 
 ## Features
 
 | Area | What users can do |
 | --- | --- |
-| Guest mode | Try core budgeting flows for 24 hours with isolated temporary data and no registration; AI and receipt processing stay member-only |
-| Dashboard | See remaining money, budget pace, daily allowance, selected-day spending, and upcoming fixed costs |
-| Monthly budget | Set one JPY budget per month and track usage and remaining money |
-| Expenses | Add quickly by hand or receipt, then edit, delete, filter, and review spending by date |
-| Subscriptions | Manage recurring monthly costs and cancellation dates |
-| Receipt capture | Upload an image or open the rear camera on supported mobile browsers |
-| Receipt review | Correct merchant, date, amount, and category before creating an expense |
-| Reports | Compare category totals and all 12 months of a selected year |
-| AI insights | Receive structured Japanese summaries and practical recommendations |
-| Responsive UI | Use purpose-built desktop, tablet, and mobile navigation and layouts |
-| Accessible states | Understand focus, loading, success, errors, selections, and chart data without relying on color alone |
+| Home | See remaining money, budget usage, daily allowance, recent expenses, and category totals |
+| Budgets | Set one JPY budget per month and follow the remaining balance |
+| Expenses | Add, edit, delete, switch months, and expand the recent list to view the whole month |
+| Recurring costs | Manage monthly payments, billing dates, and cancellations |
+| Receipt review | Upload an image or use a supported mobile camera; review extracted details before saving |
+| Reports | Compare spending categories and all 12 months of a year |
+| AI insights | Read structured Japanese summaries and suggestions when the configured provider is enabled |
 
 ## Architecture
 
@@ -111,6 +157,13 @@ flowchart LR
     Next -->|"Internal token"| Python
     Python -->|"Private receipt read"| Blob
     Python --> OpenAI
+
+    classDef lavender fill:#eee6fc,stroke:#c7b4ee,color:#302344;
+    classDef mint fill:#e5f3ed,stroke:#acd4c9,color:#302344;
+    classDef peach fill:#fff0e6,stroke:#f4c19e,color:#302344;
+    class Browser,Next lavender;
+    class DB,Blob mint;
+    class Python,OpenAI peach;
 ```
 
 ### Responsibility Boundary
@@ -292,6 +345,7 @@ order, Blob setup, queue options, smoke tests, and rollback guidance.
 
 | Document | Contents |
 | --- | --- |
+| [Design system](./docs/design-system.md) | Visual direction, tokens, assets, and verification |
 | [Architecture](./docs/architecture.md) | Service boundaries and request flows |
 | [API](./docs/api.md) | Browser API and internal FastAPI contracts |
 | [Database](./docs/database.md) | Prisma models, constraints, and migrations |

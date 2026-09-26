@@ -3,6 +3,7 @@
 import { useCallback, useEffect, useState, type FormEvent } from 'react';
 import { apiClient, getApiErrorMessage } from '../api/client';
 import AmountInput from '../components/AmountInput';
+import BrandIllustration from '@/components/BrandIllustration';
 import { formatDateValue, formatYen, getDateValue } from '../utils/formatters';
 import type { ApiEnvelope, Category, Subscription, SubscriptionPayload } from '@/types/api';
 import type { FormFieldEvent } from '@/types/forms';
@@ -39,6 +40,10 @@ export function SubscriptionsManager({ showHeader = true }: { showHeader?: boole
   });
   const [editingId, setEditingId] = useState<number | null>(null);
   const [error, setError] = useState('');
+  const [isSubmitting, setIsSubmitting] = useState(false);
+  const [isCreatingCategory, setIsCreatingCategory] = useState(false);
+  const [message, setMessage] = useState('');
+  const [isLoading, setIsLoading] = useState(true);
 
   useEffect(() => {
     fetchCategories();
@@ -63,6 +68,7 @@ export function SubscriptionsManager({ showHeader = true }: { showHeader?: boole
 
   const fetchSubscriptions = useCallback(async () => {
     setError('');
+    setIsLoading(true);
 
     try {
       const [listResponse, activeResponse] = await Promise.all([
@@ -77,6 +83,8 @@ export function SubscriptionsManager({ showHeader = true }: { showHeader?: boole
       setActiveSubscriptions(activeResponse.data.data);
     } catch (requestError) {
       setError(getApiErrorMessage(requestError));
+    } finally {
+      setIsLoading(false);
     }
   }, [status]);
 
@@ -123,11 +131,12 @@ export function SubscriptionsManager({ showHeader = true }: { showHeader?: boole
   async function createCategory() {
     const name = newCategoryName.trim();
 
-    if (!name) {
+    if (!name || isCreatingCategory) {
       return;
     }
 
     setError('');
+    setIsCreatingCategory(true);
 
     try {
       const response = await apiClient.post<ApiEnvelope<Category>>('/categories', {
@@ -139,12 +148,17 @@ export function SubscriptionsManager({ showHeader = true }: { showHeader?: boole
       await fetchCategories(response.data.data.id);
     } catch (requestError) {
       setError(getApiErrorMessage(requestError));
+    } finally {
+      setIsCreatingCategory(false);
     }
   }
 
   async function handleSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
+    if (isSubmitting) return;
+    setIsSubmitting(true);
     setError('');
+    setMessage('');
 
     try {
       const payload: SubscriptionPayload = {
@@ -163,8 +177,11 @@ export function SubscriptionsManager({ showHeader = true }: { showHeader?: boole
 
       resetForm();
       await fetchSubscriptions();
+      setMessage(editingId ? '固定費を更新しました。' : '固定費を登録しました。');
     } catch (requestError) {
       setError(getApiErrorMessage(requestError));
+    } finally {
+      setIsSubmitting(false);
     }
   }
 
@@ -209,6 +226,7 @@ export function SubscriptionsManager({ showHeader = true }: { showHeader?: boole
           <div>
             <p className="eyebrow">固定費の管理</p>
             <h1>固定費・サブスク</h1>
+            <p className="page-description">毎月の「いつもの」を、ひと目で。</p>
           </div>
         </header>
       )}
@@ -220,13 +238,14 @@ export function SubscriptionsManager({ showHeader = true }: { showHeader?: boole
       )}
 
       <section className="subscription-layout">
-        <div className="subscription-hero">
+        <div className="subscription-hero" aria-busy={isLoading}>
           <div>
             <p className="eyebrow">毎月の固定費</p>
             <h2>今月の固定費</h2>
           </div>
-          <strong>{formatYen(activeTotal)}</strong>
-          <span>有効 {activeSubscriptions.length}件 / 毎月の固定支出</span>
+          <BrandIllustration kind="receipt" size={176} className="feature-hero-art" priority />
+          <strong>{isLoading ? '—' : formatYen(activeTotal)}</strong>
+          <span role="status">{isLoading ? '固定費を読み込んでいます…' : `有効 ${activeSubscriptions.length}件 / 毎月の固定支出`}</span>
           {nextBillingItems.length > 0 && (
             <div className="subscription-hero-list">
               {nextBillingItems.map((subscription) => (
@@ -245,61 +264,66 @@ export function SubscriptionsManager({ showHeader = true }: { showHeader?: boole
             <h2>{editingId ? '固定費を編集' : '固定費を追加'}</h2>
           </div>
           <form className="form-grid" onSubmit={handleSubmit}>
-            <label>
-              項目名
-              <input name="name" value={form.name} onChange={updateForm} required />
-            </label>
-            <label>
-              カテゴリ
-              <select name="category_id" value={form.category_id} onChange={updateForm} required>
-                {categoryOptions.length === 0 && <option value="">カテゴリなし</option>}
-                {categoryOptions.map((category) => (
-                  <option key={category.id} value={category.id}>
-                    {category.name}
-                  </option>
-                ))}
-              </select>
-            </label>
-            <div className="inline-category-form">
-              <input
-                value={newCategoryName}
-                onChange={(event) => setNewCategoryName(event.target.value)}
-                placeholder="固定費カテゴリを追加"
-                aria-label="新しい固定費カテゴリ名"
-              />
-              <button
-                className="secondary-button"
-                type="button"
-                aria-label="固定費カテゴリを追加"
-                onClick={createCategory}
-              >
-                追加
-              </button>
-            </div>
-            <div className="form-row">
+            <fieldset className="form-fields" disabled={isSubmitting}>
+              <legend className="sr-only">固定費の登録・編集</legend>
               <label>
-                月額
-                <AmountInput name="amount" value={form.amount} onChange={updateForm} required />
+                項目名
+                <input name="name" value={form.name} onChange={updateForm} required />
               </label>
               <label>
-                初回日
-                <input name="started_at" type="date" value={form.started_at} onChange={updateForm} required />
+                カテゴリ
+                <select name="category_id" value={form.category_id} onChange={updateForm} required>
+                  {categoryOptions.length === 0 && <option value="">カテゴリなし</option>}
+                  {categoryOptions.map((category) => (
+                    <option key={category.id} value={category.id}>
+                      {category.name}
+                    </option>
+                  ))}
+                </select>
               </label>
-            </div>
-            <label>
-              メモ
-              <input name="memo" value={form.memo} onChange={updateForm} />
-            </label>
-            <div className="button-row">
-              <button className="primary-button" type="submit">
-                {editingId ? '固定費を更新' : '固定費を登録'}
-              </button>
-              {editingId && (
-                <button className="secondary-button" type="button" onClick={resetForm}>
-                  キャンセル
+              <div className="inline-category-form">
+                <input
+                  value={newCategoryName}
+                  onChange={(event) => setNewCategoryName(event.target.value)}
+                  placeholder="固定費カテゴリを追加"
+                  aria-label="新しい固定費カテゴリ名"
+                />
+                <button
+                  className="secondary-button"
+                  type="button"
+                  aria-label="固定費カテゴリを追加"
+                  onClick={createCategory}
+                  disabled={isCreatingCategory || !newCategoryName.trim()}
+                >
+                  {isCreatingCategory ? '追加中…' : '追加'}
                 </button>
-              )}
-            </div>
+              </div>
+              <div className="form-row">
+                <label>
+                  月額
+                  <AmountInput name="amount" value={form.amount} onChange={updateForm} required />
+                </label>
+                <label>
+                  初回日
+                  <input name="started_at" type="date" value={form.started_at} onChange={updateForm} required />
+                </label>
+              </div>
+              <label>
+                メモ
+                <input name="memo" value={form.memo} onChange={updateForm} />
+              </label>
+              <div className="button-row">
+                <button className="primary-button" type="submit">
+                  {isSubmitting ? '保存中…' : editingId ? '固定費を更新' : '固定費を登録'}
+                </button>
+                {editingId && (
+                  <button className="secondary-button" type="button" onClick={resetForm}>
+                    キャンセル
+                  </button>
+                )}
+              </div>
+            </fieldset>
+            {message && <p className="form-success" role="status">{message}</p>}
           </form>
         </section>
       </section>
@@ -340,7 +364,13 @@ export function SubscriptionsManager({ showHeader = true }: { showHeader?: boole
               </div>
             </div>
           ))}
-          {subscriptions.length === 0 && <p className="muted-text">固定費はまだありません。</p>}
+          {isLoading && <p className="muted-text">固定費を読み込んでいます…</p>}
+          {!isLoading && subscriptions.length === 0 && (
+            <div className="empty-state">
+              <BrandIllustration kind="receipt" size={88} />
+              <p>{status === 'canceled' ? '解約済みの固定費はありません。' : '固定費はまだありません。上のフォームから、毎月の支払いを追加しましょう。'}</p>
+            </div>
+          )}
         </div>
       </section>
     </section>

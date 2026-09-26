@@ -7,8 +7,8 @@ export default function manifest(): MetadataRoute.Manifest {
     description: '月間生活費・支出・サブスクをまとめて管理するサービス',
     start_url: '/',
     display: 'standalone',
-    background_color: '#f6f7f9',
-    theme_color: '#111827',
+    background_color: '#f6f3fc',
+    theme_color: '#f6f3fc',
     lang: 'ja',
     icons: [
       {

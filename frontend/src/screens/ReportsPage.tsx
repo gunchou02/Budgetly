@@ -4,6 +4,7 @@ import { useEffect, useState, type ChangeEvent } from 'react';
 import { CircleAlert, CircleCheck, Info, Lightbulb, type LucideIcon } from 'lucide-react';
 import { Bar, BarChart, CartesianGrid, ResponsiveContainer, Tooltip, XAxis, YAxis } from 'recharts';
 import { useAuth } from '@/auth/AuthContext';
+import BrandIllustration from '@/components/BrandIllustration';
 import { apiClient, getApiErrorMessage } from '../api/client';
 import { formatYen, getCurrentYearMonth } from '../utils/formatters';
 import type {
@@ -34,12 +35,14 @@ function ReportsPage() {
   const [isInsightLoading, setIsInsightLoading] = useState(true);
   const [insightError, setInsightError] = useState('');
   const [error, setError] = useState('');
+  const [isLoading, setIsLoading] = useState(true);
 
   useEffect(() => {
     let isActive = true;
 
     async function fetchReports() {
       setError('');
+      setIsLoading(true);
 
       try {
         const [categoryResponse, monthlyResponse] = await Promise.all([
@@ -64,6 +67,8 @@ function ReportsPage() {
         if (isActive) {
           setError(getApiErrorMessage(requestError));
         }
+      } finally {
+        if (isActive) setIsLoading(false);
       }
     }
 
@@ -124,9 +129,13 @@ function ReportsPage() {
   return (
     <section className="page-stack">
       <header className="page-header">
-        <div>
-          <p className="eyebrow">支出の振り返り</p>
-          <h1>レポート</h1>
+        <div className="illustrated-page-title">
+          <BrandIllustration kind="chart" size={80} />
+          <div>
+            <p className="eyebrow">支出の振り返り</p>
+            <h1>レポート</h1>
+            <p className="page-description">お金の流れを知って、次の一歩へ。</p>
+          </div>
         </div>
         <div className="header-actions">
           <input
@@ -156,22 +165,23 @@ function ReportsPage() {
         </p>
       )}
 
-      <div className="summary-grid">
+      {isLoading && <p className="muted-text" role="status">支出を集計しています…</p>}
+      <div className="summary-grid" aria-busy={isLoading}>
         <article className="metric-card">
           <span>年間支出</span>
-          <strong>{formatYen(monthlyReport?.summary.total_spent)}</strong>
+          <strong>{isLoading ? '—' : formatYen(monthlyReport?.summary.total_spent)}</strong>
         </article>
         <article className="metric-card">
           <span>通常支出</span>
-          <strong>{formatYen(monthlyReport?.summary.expense_total)}</strong>
+          <strong>{isLoading ? '—' : formatYen(monthlyReport?.summary.expense_total)}</strong>
         </article>
         <article className="metric-card">
           <span>サブスク</span>
-          <strong>{formatYen(monthlyReport?.summary.subscription_total)}</strong>
+          <strong>{isLoading ? '—' : formatYen(monthlyReport?.summary.subscription_total)}</strong>
         </article>
         <article className="metric-card">
           <span>サブスク比率</span>
-          <strong>{monthlyReport?.summary.subscription_rate ?? 0}%</strong>
+          <strong>{isLoading ? '—' : `${monthlyReport?.summary.subscription_rate ?? 0}%`}</strong>
         </article>
       </div>
 
@@ -232,18 +242,22 @@ function ReportsPage() {
         <div className="panel-header">
           <h2>月別支出</h2>
         </div>
-        <div aria-hidden="true">
-          <ResponsiveContainer width="100%" height={320}>
-            <BarChart data={monthlyData}>
-              <CartesianGrid strokeDasharray="3 3" vertical={false} />
-              <XAxis dataKey="label" />
-              <YAxis tickFormatter={(value) => `¥${value / 1000}k`} />
-              <Tooltip formatter={(value) => formatYen(value as number)} />
-              <Bar dataKey="expense_total" name="通常支出" fill="#6258C7" radius={[4, 4, 0, 0]} />
-              <Bar dataKey="subscription_total" name="サブスク" fill="#B73D6D" radius={[4, 4, 0, 0]} />
-            </BarChart>
-          </ResponsiveContainer>
-        </div>
+        {isLoading ? (
+          <div className="dashboard-loading" aria-hidden="true"><span className="loading-bar" />集計中…</div>
+        ) : (
+          <div aria-hidden="true">
+            <ResponsiveContainer width="100%" height={320}>
+              <BarChart data={monthlyData}>
+                <CartesianGrid stroke="var(--budgetly-line)" strokeDasharray="3 3" vertical={false} />
+                <XAxis dataKey="label" stroke="var(--budgetly-muted)" axisLine={false} tickLine={false} fontSize={12} />
+                <YAxis tickFormatter={(value) => `¥${value / 1000}k`} stroke="var(--budgetly-muted)" axisLine={false} tickLine={false} fontSize={12} width={52} />
+                <Tooltip formatter={(value) => formatYen(value as number)} contentStyle={{ borderRadius: 12, borderColor: 'var(--budgetly-line)', color: 'var(--budgetly-ink)' }} cursor={{ fill: 'var(--budgetly-accent-soft)' }} />
+                <Bar dataKey="expense_total" name="通常支出" fill="var(--budgetly-chart-primary)" radius={[6, 6, 0, 0]} />
+                <Bar dataKey="subscription_total" name="サブスク" fill="var(--budgetly-chart-secondary)" radius={[6, 6, 0, 0]} />
+              </BarChart>
+            </ResponsiveContainer>
+          </div>
+        )}
         {monthlyData.length > 0 && (
           <table className="sr-only">
             <caption>{filters.year}年の月別支出</caption>
@@ -273,7 +287,7 @@ function ReportsPage() {
         <div className="panel-header">
           <h2>カテゴリ別分析</h2>
         </div>
-        <div className="data-table">
+        <div className="data-table category-data-table">
           {(categoryReport?.categories ?? []).map((category) => (
             <div className="table-row" key={category.category_id}>
               <span className="color-dot" style={{ backgroundColor: category.color }} />
@@ -282,7 +296,13 @@ function ReportsPage() {
               <strong>{formatYen(category.amount)}</strong>
             </div>
           ))}
-          {(categoryReport?.categories ?? []).length === 0 && <p className="muted-text">この月の支出はまだありません。</p>}
+          {isLoading && <p className="muted-text">カテゴリを集計しています…</p>}
+          {!isLoading && (categoryReport?.categories ?? []).length === 0 && (
+            <div className="empty-state">
+              <BrandIllustration kind="chart" size={88} />
+              <p>この月の支出はまだありません。ホームで記録すると、ここで振り返れます。</p>
+            </div>
+          )}
         </div>
       </section>
     </section>
