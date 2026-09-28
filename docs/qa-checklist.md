@@ -21,6 +21,15 @@ Expected:
 - The production build has no missing environment or dynamic file-path warning.
 - Production dependencies have no high or critical npm advisories.
 
+Dependency overrides in `frontend/package.json` also cover Prisma CLI's pinned
+transitive dependencies: `@prisma/config` uses `deepmerge-ts` 8.0.0 to address
+[GHSA-ggr8-5vv4-36mx](https://github.com/advisories/GHSA-ggr8-5vv4-36mx), and
+`prisma` uses `mysql2` 3.24.4 for its authentication and decompression fixes.
+Budgetly uses PostgreSQL; its Prisma config contains plain records, with no Map
+merging or `deepmergeInto` usage affected by deepmerge-ts 8's breaking changes.
+Keep these overrides until upstream pins patched versions, and verify Prisma
+generation, migration, and the API integration flow whenever changing them.
+
 ### API Integration
 
 ```bash

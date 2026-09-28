@@ -33,12 +33,12 @@
     "axios": "^1.7.9",
     "bcryptjs": "^3.0.3",
     "lucide-react": "^0.468.0",
-    "next": "16.2.12",
+    "next": "16.3.6",
     "pg": "^8.22.0",
     "react": "^19.2.7",
     "react-dom": "^19.2.7",
     "recharts": "^3.0.0",
-    "sharp": "0.35.3",
+    "sharp": "0.35.4",
     "zod": "^4.4.3"
   },
   "devDependencies": {
@@ -48,7 +48,7 @@
     "@types/react-dom": "^19.2.3",
     "@vitest/coverage-v8": "^4.1.10",
     "eslint": "9.39.5",
-    "eslint-config-next": "16.2.12",
+    "eslint-config-next": "16.3.6",
     "postcss": "8.5.23",
     "prisma": "7.9.1",
     "tailwindcss": "^4.3.2",
@@ -57,11 +57,17 @@
     "vitest": "^4.1.10"
   },
   "overrides": {
-    "fast-uri": "3.1.5",
+    "@prisma/config": {
+      "deepmerge-ts": "8.0.0"
+    },
+    "prisma": {
+      "mysql2": "3.24.4"
+    },
+    "fast-uri": "3.1.6",
     "find-my-way": "9.7.0",
     "nanoid": "3.3.18",
     "postcss": "8.5.23",
-    "sharp": "0.35.3",
+    "sharp": "0.35.4",
     "undici": "6.28.0"
   }
 }
